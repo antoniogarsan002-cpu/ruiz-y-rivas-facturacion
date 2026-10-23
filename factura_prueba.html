@@ -356,6 +356,26 @@
       if (!items.length) return '<div class="empty">No hay clientes.</div>';
       return '<table><thead><tr><th>Cliente</th><th>Correo</th><th>NIF/CIF</th><th>Facturas</th><th></th></tr></thead><tbody>' + items.map(function(c) { var count = state.invoices.filter(function(i) { return i.client === c.name; }).length; return '<tr><td><strong>' + esc(c.name) + '</strong></td><td>' + esc(c.detail) + '</td><td>' + esc(c.tax) + '</td><td>' + count + '</td><td><div class="row-actions"><button class="ghost" data-action="client-detail" data-id="' + c.id + '">Ficha</button><button class="ghost" data-action="edit-client" data-id="' + c.id + '">Editar</button><button class="danger" data-action="delete-client" data-id="' + c.id + '">Borrar</button><button class="secondary" data-action="print-client" data-id="' + c.id + '">PDF</button></div></td></tr>'; }).join('') + '</tbody></table>';
     }
+    function clientDetail(id) {
+      var client = state.clients.find(function(c) { return String(c.id) === String(id); });
+      if (!client) return;
+      var invoices = state.invoices.filter(function(i) { return i.client === client.name; });
+      var quotes = state.quotes.filter(function(q) { return q.client === client.name; });
+      var paidTotal = invoices.filter(function(i) { return i.status === 'Pagada'; }).reduce(function(sum, i) { return sum + Number(i.total || 0); }, 0);
+      var pendingTotal = invoices.filter(function(i) { return i.status !== 'Pagada'; }).reduce(function(sum, i) { return sum + Number(i.total || 0); }, 0);
+      var invoiceRows = invoices.length ? invoices.map(function(i) {
+        return '<tr><td><strong>' + esc(i.id) + '</strong></td><td>' + esc(i.date) + '</td><td>' + statusBadge(i.status) + '</td><td class="amount">' + euro(i.total) + '</td><td><button type="button" class="ghost" data-action="edit-invoice" data-id="' + esc(i.id) + '">Editar</button></td></tr>';
+      }).join('') : '<tr><td colspan="5">No hay facturas asociadas.</td></tr>';
+      var quoteRows = quotes.length ? quotes.map(function(q) {
+        return '<tr><td><strong>' + esc(q.id) + '</strong></td><td>' + esc(q.date) + '</td><td>' + statusBadge(q.status) + '</td><td class="amount">' + euro(q.total) + '</td><td><button type="button" class="ghost" data-action="edit-quote" data-id="' + esc(q.id) + '">Editar</button></td></tr>';
+      }).join('') : '<tr><td colspan="5">No hay presupuestos asociados.</td></tr>';
+      var body = '<form class="form"><div class="cards" style="grid-template-columns:repeat(3,1fr);margin:0 0 14px"><div class="mini-info" style="margin:0"><strong>Facturas</strong><br>' + invoices.length + '</div><div class="mini-info" style="margin:0"><strong>Cobrado</strong><br>' + euro(paidTotal) + '</div><div class="mini-info" style="margin:0"><strong>Pendiente</strong><br>' + euro(pendingTotal) + '</div></div>' +
+        '<div class="mini-info" style="margin:0"><strong>Datos del cliente</strong><br>' + esc(client.detail) + '<br>' + esc(client.tax) + '</div>' +
+        '<h4 style="margin:18px 0 8px">Facturas</h4><div style="overflow:auto"><table><thead><tr><th>Número</th><th>Fecha</th><th>Estado</th><th class="amount">Total</th><th></th></tr></thead><tbody>' + invoiceRows + '</tbody></table></div>' +
+        '<h4 style="margin:18px 0 8px">Presupuestos</h4><div style="overflow:auto"><table><thead><tr><th>Número</th><th>Fecha</th><th>Estado</th><th class="amount">Total</th><th></th></tr></thead><tbody>' + quoteRows + '</tbody></table></div>' +
+        '<div class="form-actions"><button type="button" class="ghost" data-action="close-modal">Cerrar</button><button type="button" class="secondary" data-action="print-client" data-id="' + esc(client.id) + '">Descargar ficha en PDF</button></div></form>';
+      openModal('Ficha de ' + esc(client.name), body, function() { closeModal(); });
+    }
     function productTable(items) {
       if (!items.length) return '<div class="empty">No hay productos.</div>';
       return '<table><thead><tr><th>Nombre</th><th>Código</th><th>Precio sin IVA</th><th>Tipo</th><th></th></tr></thead><tbody>' + items.map(function(p) { return '<tr><td><strong>' + esc(p.name) + '</strong></td><td>' + esc(p.code) + '</td><td>' + euro(p.price) + '</td><td><span class="status paid">Servicio</span></td><td><div class="row-actions"><button class="ghost" data-action="edit-product" data-id="' + p.id + '">Editar</button><button class="danger" data-action="delete-product" data-id="' + p.id + '">Borrar</button><button class="secondary" data-action="print-product" data-id="' + p.id + '">PDF</button></div></td></tr>'; }).join('') + '</tbody></table>';
@@ -797,7 +817,7 @@
       if (a === 'import') toast('Aquí podrías importar clientes, productos y facturas desde Excel o CSV.');
       if (a === 'reminders') toast('Recordatorios preparados para las facturas pendientes.');
       if (a === 'save-settings') saveSettingsFromForm();
-      if (a === 'client-detail') toast('Ficha del cliente: facturas, presupuestos, cobros y notas.');
+      if (a === 'client-detail') clientDetail(action.dataset.id);
       if (a === 'convert-quote') { var q = state.quotes.find(function(x) { return x.id === action.dataset.id; }); if (q) { state.invoices.unshift({ id:'F-2026-' + String(state.invoices.length + 5).padStart(3,'0'), client:q.client, date:today(), status:'Borrador', total:q.total }); q.status = 'Aceptado'; toast('Presupuesto convertido en factura'); render(); } }
       if (a === 'mark-paid') { var i = state.invoices.find(function(x) { return x.id === action.dataset.id; }); if (i) { i.status = 'Pagada'; toast('Factura marcada como cobrada'); render(); } }
       if (a === 'new-quote') newQuote();
