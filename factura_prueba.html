@@ -10,6 +10,8 @@
     body { margin:0; font-family:Arial,Helvetica,sans-serif; color:var(--ink); background:var(--bg); }
     button, input, select { font:inherit; }
     button { cursor:pointer; }
+    button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline:3px solid rgba(49,87,213,.22); outline-offset:2px; border-color:var(--primary); }
+    button:disabled { cursor:not-allowed; opacity:.55; }
     .app { min-height:100vh; display:flex; }
     .sidebar { width:245px; flex:0 0 245px; background:#fff; border-right:1px solid var(--line); padding:22px 14px; }
     .brand { display:flex; flex-direction:column; align-items:flex-start; gap:3px; padding:0 10px 24px; }
@@ -37,8 +39,11 @@
     .primary { color:white; background:var(--primary); }
     .primary:hover { background:var(--primary-dark); }
     .secondary { color:var(--primary); background:var(--soft); }
+    .secondary:hover { background:#e0e7ff; }
     .ghost { color:#475467; background:#f8fafc; border:1px solid var(--line); }
+    .ghost:hover { background:#eef2f6; }
     .danger { color:var(--red); background:var(--red-bg); border:1px solid #f3c5c0; }
+    .danger:hover { background:#ffe3df; }
     .workspace { padding:25px 28px 40px; max-width:1320px; }
     .view-title { display:flex; align-items:flex-start; justify-content:space-between; gap:15px; margin-bottom:20px; }
     .view-title h2 { margin:0; font-size:21px; }
@@ -58,6 +63,7 @@
     table { width:100%; border-collapse:collapse; }
     th { text-align:left; color:#98a2b3; font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.04em; padding:9px 8px; border-bottom:1px solid var(--line); white-space:nowrap; }
     td { font-size:13px; padding:13px 8px; border-bottom:1px solid #f0f2f5; white-space:nowrap; }
+    tbody tr:hover td { background:#fbfcff; }
     tr:last-child td { border-bottom:0; }
     td.amount, th.amount { text-align:right; }
     .status { display:inline-flex; align-items:center; border-radius:20px; padding:5px 9px; font-size:11px; font-weight:700; }
@@ -72,6 +78,7 @@
     .progress i { display:block; height:100%; border-radius:9px; background:var(--primary); }
     .feature-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
     .feature { border:1px solid var(--line); border-radius:12px; padding:15px; background:#fff; color:var(--ink); text-align:left; width:100%; }
+    .feature:hover { border-color:#b9c7ff; background:#fbfcff; box-shadow:0 5px 16px rgba(49,87,213,.08); }
     .feature .ficon { font-size:20px; margin-bottom:8px; }
     .feature strong { display:block; font-size:13px; }
     .feature span { display:block; color:var(--muted); font-size:12px; line-height:1.4; margin-top:4px; }
@@ -105,7 +112,7 @@
     .mini-info { border-radius:10px; background:#f8fafc; padding:12px; color:#475467; font-size:12px; line-height:1.5; margin-top:14px; }
     .modal-backdrop { position:fixed; inset:0; background:rgba(16,24,40,.45); display:none; align-items:center; justify-content:center; padding:20px; z-index:10; }
     .modal-backdrop.open { display:flex; }
-    .modal { width:min(560px,100%); max-height:90vh; overflow:auto; background:#fff; border-radius:16px; padding:23px; box-shadow:0 20px 55px rgba(16,24,40,.25); }
+    .modal { width:min(760px,100%); max-height:90vh; overflow:auto; background:#fff; border-radius:16px; padding:23px; box-shadow:0 20px 55px rgba(16,24,40,.25); }
     .modal-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
     .modal-head h3 { margin:0; font-size:19px; }
     .close { border:0; background:#f2f4f7; border-radius:50%; width:30px; height:30px; color:#667085; }
@@ -124,8 +131,8 @@
     .switch.off { background:#d0d5dd; }
     .switch.off:after { left:3px; right:auto; }
     .switch:after { content:''; position:absolute; right:3px; top:3px; width:16px; height:16px; border-radius:50%; background:#fff; }
-    @media (max-width:900px) { .sidebar { width:210px; flex-basis:210px; } .cards { grid-template-columns:repeat(2,1fr); } .grid-2, .two-columns { grid-template-columns:1fr; } .invoice-line { grid-template-columns:1fr 1fr; } .invoice-line .line-description { grid-column:1 / -1; } }
-    @media (max-width:650px) { .app { display:block; } .sidebar { width:100%; padding:12px; border-right:0; border-bottom:1px solid var(--line); } .brand { padding-bottom:10px; } .nav-label, .side-note { display:none; } .nav { display:grid; grid-template-columns:repeat(4,1fr); } .nav button { padding:8px 3px; justify-content:center; flex-direction:column; gap:2px; font-size:10px; } .nav button:nth-child(n+9) { display:none; } .topbar { padding:14px 16px; } .topbar p, .search { display:none; } .workspace { padding:18px 16px 28px; } .cards { gap:9px; } .card { padding:14px; } .metric .number { font-size:19px; } .feature-grid { grid-template-columns:1fr 1fr; } }
+    @media (max-width:900px) { .sidebar { width:210px; flex-basis:210px; } .cards { grid-template-columns:repeat(2,1fr); } .grid-2, .two-columns { grid-template-columns:1fr; } .invoice-line { grid-template-columns:1fr 1fr; } .invoice-line .line-description { grid-column:1 / -1; } .row-actions { flex-wrap:wrap; } }
+    @media (max-width:650px) { .app { display:block; } .sidebar { width:100%; padding:12px; border-right:0; border-bottom:1px solid var(--line); } .brand { padding-bottom:10px; } .nav-label, .side-note { display:none; } .nav { display:grid; grid-template-columns:repeat(4,1fr); } .nav button { padding:8px 3px; justify-content:center; flex-direction:column; gap:2px; font-size:10px; } .nav button:nth-child(n+9) { display:none; } .topbar { padding:14px 16px; align-items:flex-start; } .topbar h1 { font-size:18px; } .top-actions { gap:6px; } .top-actions .primary { padding:9px 10px; font-size:11px; } .sync-badge { padding:6px 8px; font-size:10px; } .topbar p, .search { display:none; } .workspace { padding:18px 16px 28px; } .cards { gap:9px; } .card { padding:14px; } .metric .number { font-size:19px; } .feature-grid { grid-template-columns:1fr 1fr; } .form-grid { grid-template-columns:1fr; gap:0; } .invoice-line { grid-template-columns:1fr; } .invoice-line .line-description { grid-column:auto; } .modal-backdrop { padding:10px; } .modal { padding:17px; border-radius:13px; } .form-actions { flex-wrap:wrap; } .form-actions button { flex:1 1 auto; } }
     @media print { .sidebar, .topbar, .view-title button, .toolbar, .modal-backdrop { display:none !important; } .app, .content { display:block; } .workspace { padding:0; } .card { box-shadow:none; } }
   </style>
 </head>
@@ -225,6 +232,10 @@
     var euro = function(n) { return Number(n).toLocaleString('es-ES', { style:'currency', currency:'EUR' }); };
     var esc = function(s) { return String(s).replace(/[&<>"']/g, function(c) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]; }); };
     var today = function() { return new Date().toLocaleDateString('es-ES'); };
+    function nextDocumentNumber(prefix, items) {
+      var max = items.reduce(function(highest, item) { var match = String(item.id || '').match(/(\d+)$/); return match ? Math.max(highest, Number(match[1])) : highest; }, 0);
+      return prefix + String(max + 1).padStart(3, '0');
+    }
     var statusClass = function(s) { return s === 'Pagada' || s === 'Aceptado' ? 'paid' : s === 'Pendiente' || s === 'Enviada' ? 'pending' : s === 'Rechazado' ? 'rejected' : 'draft'; };
     var statusBadge = function(s) { return '<span class="status ' + statusClass(s) + '">' + esc(s) + '</span>'; };
     var paymentNames = { transferencia:'Transferencia', recibo:'Recibo', tarjeta:'Tarjeta', efectivo:'Efectivo' };
@@ -272,7 +283,7 @@
     }
     var $ = function(id) { return document.getElementById(id); };
     function saveState() {
-      var snapshot = { clients:state.clients, products:state.products, invoices:state.invoices, quotes:state.quotes, expenses:state.expenses, accounts:state.accounts, settings:state.settings };
+      var snapshot = { version:2, initialized:true, updatedAt:new Date().toISOString(), clients:state.clients, products:state.products, invoices:state.invoices, quotes:state.quotes, expenses:state.expenses, accounts:state.accounts, settings:state.settings };
       try { localStorage.setItem(storageKey, JSON.stringify(snapshot)); } catch (e) {}
       if (!window.suppressSharedSave && typeof window.persistSharedState === 'function') window.persistSharedState(snapshot);
     }
@@ -297,16 +308,20 @@
 
     function renderHome() {
       setPageMeta('Inicio', 'Resumen de la actividad de tu negocio');
-      var sales = state.invoices.filter(function(i) { return i.status === 'Pagada'; }).reduce(function(a,i) { return a + i.total; }, 0);
-      var pending = state.invoices.filter(function(i) { return i.status === 'Pendiente'; }).reduce(function(a,i) { return a + i.total; }, 0);
-      var expenses = state.expenses.reduce(function(a,i) { return a + i.total; }, 0);
+      var sales = state.invoices.filter(function(i) { return i.status === 'Pagada'; }).reduce(function(a,i) { return a + Number(i.total || 0); }, 0);
+      var pendingInvoices = state.invoices.filter(function(i) { return i.status !== 'Pagada'; });
+      var pending = pendingInvoices.reduce(function(a,i) { return a + Number(i.total || 0); }, 0);
+      var expenses = state.expenses.reduce(function(a,i) { return a + Number(i.total || 0); }, 0);
+      var paidPercent = state.invoices.length ? Math.round(state.invoices.filter(function(i) { return i.status === 'Pagada'; }).length / state.invoices.length * 100) : 0;
+      var acceptedPercent = state.quotes.length ? Math.round(state.quotes.filter(function(q) { return q.status === 'Aceptado'; }).length / state.quotes.length * 100) : 0;
+      var controlledPercent = state.expenses.length ? 100 : 0;
       $('workspace').innerHTML = '<div class="view-title"><div><h2>Buenos días 👋</h2><p>Aquí tienes lo más importante de Ruiz y Rivas Consultores.</p></div><button class="secondary" data-action="print">Imprimir resumen</button></div>' +
-        '<div class="cards">' + metric('Ventas cobradas', euro(sales), '+12,4% este mes', '↗') + metric('Pendiente de cobro', euro(pending), '2 facturas abiertas', '◷') + metric('Gastos del mes', euro(expenses), '3 gastos registrados', '↓') + metric('Clientes', state.clients.length, '+1 este mes', '♙') + '</div>' +
+        '<div class="cards">' + metric('Ventas cobradas', euro(sales), state.invoices.filter(function(i) { return i.status === 'Pagada'; }).length + ' facturas pagadas', '↗') + metric('Pendiente de cobro', euro(pending), pendingInvoices.length + ' facturas abiertas', '◷') + metric('Gastos del mes', euro(expenses), state.expenses.length + ' gastos registrados', '↓') + metric('Clientes', state.clients.length, 'Contactos activos', '♙') + '</div>' +
         '<div class="grid-2"><div class="card"><div class="card-head"><h3>Últimas facturas</h3><a data-view-link="facturas">Ver todas</a></div>' + invoiceTable(state.invoices.slice(0,4)) + '</div>' +
         '<div class="card"><div class="card-head"><h3>Estado del negocio</h3><span class="status paid">Actualizado</span></div>' +
-          '<div class="progress-row"><div class="progress-label"><span>Facturas pagadas</span><span>68%</span></div><div class="progress"><i style="width:68%"></i></div></div>' +
-          '<div class="progress-row"><div class="progress-label"><span>Presupuestos aceptados</span><span>54%</span></div><div class="progress"><i style="width:54%"></i></div></div>' +
-          '<div class="progress-row"><div class="progress-label"><span>Gastos controlados</span><span>82%</span></div><div class="progress"><i style="width:82%"></i></div></div>' +
+          '<div class="progress-row"><div class="progress-label"><span>Facturas pagadas</span><span>' + paidPercent + '%</span></div><div class="progress"><i style="width:' + paidPercent + '%"></i></div></div>' +
+          '<div class="progress-row"><div class="progress-label"><span>Presupuestos aceptados</span><span>' + acceptedPercent + '%</span></div><div class="progress"><i style="width:' + acceptedPercent + '%"></i></div></div>' +
+          '<div class="progress-row"><div class="progress-label"><span>Gastos controlados</span><span>' + controlledPercent + '%</span></div><div class="progress"><i style="width:' + controlledPercent + '%"></i></div></div>' +
           '<div class="mini-info">💡 Consejo: convierte los presupuestos aceptados en factura con un solo clic.</div></div></div>' +
         '<div class="card" style="margin-top:18px"><div class="card-head"><h3>Todo lo que puedes gestionar</h3><span style="color:#667085;font-size:12px">Demo interactiva</span></div><div class="feature-grid">' +
           feature('▤','Facturas','Crear, enviar, cobrar y controlar estados.') + feature('☷','Presupuestos','Preparar propuestas y convertirlas en facturas.') + feature('♙','Clientes','Guardar contactos y datos fiscales.') + feature('▦','Productos','Catálogo de servicios, precios e IVA.') + feature('↓','Gastos','Registrar compras y gastos del negocio.') + feature('◒','Informes','Ver ventas, gastos y beneficio.') + '</div></div>';
@@ -337,16 +352,23 @@
     function renderQuotes() {
       setPageMeta('Presupuestos', 'Prepara propuestas y conviértelas en facturas');
       $('workspace').innerHTML = '<div class="view-title"><div><h2>Presupuestos</h2><p>Del presupuesto al cobro, sin volver a escribir los datos.</p></div><button class="primary" data-action="new-quote">+ Nuevo presupuesto</button></div>' +
-        '<div class="toolbar"><button class="secondary" data-action="print-all-quotes">Descargar presupuestos en PDF</button></div>' +
+        '<div class="toolbar"><input id="quoteSearch" placeholder="Buscar por cliente o número..."><select id="quoteFilter"><option value="">Todos los estados</option><option>Pendiente</option><option>Aceptado</option><option>Rechazado</option><option>Borrador</option></select><button class="secondary" data-action="print-all-quotes">Descargar presupuestos en PDF</button></div>' +
         '<div class="card list-card">' + quoteTable(state.quotes) + '</div>' +
         '<div class="two-columns" style="margin-top:18px"><div class="card"><h3 style="margin:0 0 12px;font-size:16px">Flujo de venta</h3><div class="progress-row"><div class="progress-label"><span>1. Presupuesto</span><span>Enviado</span></div><div class="progress"><i style="width:100%"></i></div></div><div class="progress-row"><div class="progress-label"><span>2. Aceptación</span><span>Online</span></div><div class="progress"><i style="width:72%"></i></div></div><div class="progress-row"><div class="progress-label"><span>3. Factura</span><span>Un clic</span></div><div class="progress"><i style="width:48%"></i></div></div><div class="progress-row"><div class="progress-label"><span>4. Cobro</span><span>Seguimiento</span></div><div class="progress"><i style="width:35%"></i></div></div></div><div class="card"><h3 style="margin:0 0 12px;font-size:16px">Documentos disponibles</h3><div class="feature-grid" style="grid-template-columns:1fr 1fr">' + feature('▤','Proforma','Para anticipar una venta.') + feature('▥','Albarán','Para entregar productos.') + feature('↻','Recurrente','Para cuotas periódicas.') + feature('✉','Envío email','Comparte el documento.') + '</div></div></div>';
+      $('quoteSearch').addEventListener('input', filterQuotes);
+      $('quoteFilter').addEventListener('change', filterQuotes);
+    }
+    function filterQuotes() {
+      var q = $('quoteSearch').value.toLowerCase().trim(), f = $('quoteFilter').value;
+      var rows = state.quotes.filter(function(item) { return (!q || (item.client + ' ' + item.id).toLowerCase().indexOf(q) >= 0) && (!f || item.status === f); });
+      document.querySelector('.list-card').innerHTML = quoteTable(rows);
     }
 
     function renderClients() {
       setPageMeta('Clientes', 'Contactos, datos fiscales y seguimiento');
       $('workspace').innerHTML = '<div class="view-title"><div><h2>Clientes</h2><p>Ten todos tus contactos ordenados en un solo lugar.</p></div><button class="primary" data-action="new-client">+ Nuevo cliente</button></div>' +
         '<div class="toolbar"><input id="clientSearch" placeholder="Buscar cliente..."><button class="ghost" data-action="import">Importar datos</button><button class="secondary" data-action="print-all-clients">Descargar clientes en PDF</button></div><div class="card list-card">' + clientTable(state.clients) + '</div>';
-      $('clientSearch').addEventListener('input', function() { var q = this.value.toLowerCase(); document.querySelector('.list-card').innerHTML = clientTable(state.clients.filter(function(c) { return (c.name + ' ' + c.detail + ' ' + c.tax).toLowerCase().indexOf(q) >= 0; })); });
+      $('clientSearch').addEventListener('input', function() { var q = this.value.toLowerCase(); document.querySelector('.list-card').innerHTML = clientTable(state.clients.filter(function(c) { return (c.name + ' ' + c.detail + ' ' + c.tax + ' ' + (c.phone || '') + ' ' + (c.address || '')).toLowerCase().indexOf(q) >= 0; })); });
     }
     function quoteTable(items) {
       if (!items.length) return '<div class="empty">No hay presupuestos.</div>';
@@ -354,7 +376,7 @@
     }
     function clientTable(items) {
       if (!items.length) return '<div class="empty">No hay clientes.</div>';
-      return '<table><thead><tr><th>Cliente</th><th>Correo</th><th>NIF/CIF</th><th>Facturas</th><th></th></tr></thead><tbody>' + items.map(function(c) { var count = state.invoices.filter(function(i) { return i.client === c.name; }).length; return '<tr><td><strong>' + esc(c.name) + '</strong></td><td>' + esc(c.detail) + '</td><td>' + esc(c.tax) + '</td><td>' + count + '</td><td><div class="row-actions"><button class="ghost" data-action="client-detail" data-id="' + c.id + '">Ficha</button><button class="ghost" data-action="edit-client" data-id="' + c.id + '">Editar</button><button class="danger" data-action="delete-client" data-id="' + c.id + '">Borrar</button><button class="secondary" data-action="print-client" data-id="' + c.id + '">PDF</button></div></td></tr>'; }).join('') + '</tbody></table>';
+      return '<table><thead><tr><th>Cliente</th><th>Contacto</th><th>NIF/CIF</th><th>Facturas</th><th></th></tr></thead><tbody>' + items.map(function(c) { var count = state.invoices.filter(function(i) { return i.client === c.name; }).length; return '<tr><td><strong>' + esc(c.name) + '</strong></td><td>' + esc(c.detail || 'Sin correo') + (c.phone ? '<br><small style="color:#667085">' + esc(c.phone) + '</small>' : '') + '</td><td>' + esc(c.tax || 'Pendiente') + '</td><td>' + count + '</td><td><div class="row-actions"><button class="ghost" data-action="client-detail" data-id="' + c.id + '">Ficha</button><button class="ghost" data-action="edit-client" data-id="' + c.id + '">Editar</button><button class="danger" data-action="delete-client" data-id="' + c.id + '">Borrar</button><button class="secondary" data-action="print-client" data-id="' + c.id + '">PDF</button></div></td></tr>'; }).join('') + '</tbody></table>';
     }
     function clientDetail(id) {
       var client = state.clients.find(function(c) { return String(c.id) === String(id); });
@@ -370,7 +392,7 @@
         return '<tr><td><strong>' + esc(q.id) + '</strong></td><td>' + esc(q.date) + '</td><td>' + statusBadge(q.status) + '</td><td class="amount">' + euro(q.total) + '</td><td><button type="button" class="ghost" data-action="edit-quote" data-id="' + esc(q.id) + '">Editar</button></td></tr>';
       }).join('') : '<tr><td colspan="5">No hay presupuestos asociados.</td></tr>';
       var body = '<form class="form"><div class="cards" style="grid-template-columns:repeat(3,1fr);margin:0 0 14px"><div class="mini-info" style="margin:0"><strong>Facturas</strong><br>' + invoices.length + '</div><div class="mini-info" style="margin:0"><strong>Cobrado</strong><br>' + euro(paidTotal) + '</div><div class="mini-info" style="margin:0"><strong>Pendiente</strong><br>' + euro(pendingTotal) + '</div></div>' +
-        '<div class="mini-info" style="margin:0"><strong>Datos del cliente</strong><br>' + esc(client.detail) + '<br>' + esc(client.tax) + '</div>' +
+        '<div class="mini-info" style="margin:0"><strong>Datos del cliente</strong><br><b>Correo:</b> ' + esc(client.detail || 'Sin indicar') + '<br><b>Teléfono:</b> ' + esc(client.phone || 'Sin indicar') + '<br><b>NIF/CIF:</b> ' + esc(client.tax || 'Pendiente') + '<br><b>Dirección:</b> ' + esc(client.address || 'Sin indicar') + (client.notes ? '<br><b>Notas:</b> ' + esc(client.notes) : '') + '</div>' +
         '<h4 style="margin:18px 0 8px">Facturas</h4><div style="overflow:auto"><table><thead><tr><th>Número</th><th>Fecha</th><th>Estado</th><th class="amount">Total</th><th></th></tr></thead><tbody>' + invoiceRows + '</tbody></table></div>' +
         '<h4 style="margin:18px 0 8px">Presupuestos</h4><div style="overflow:auto"><table><thead><tr><th>Número</th><th>Fecha</th><th>Estado</th><th class="amount">Total</th><th></th></tr></thead><tbody>' + quoteRows + '</tbody></table></div>' +
         '<div class="form-actions"><button type="button" class="ghost" data-action="close-modal">Cerrar</button><button type="button" class="secondary" data-action="print-client" data-id="' + esc(client.id) + '">Descargar ficha en PDF</button></div></form>';
@@ -378,38 +400,56 @@
     }
     function productTable(items) {
       if (!items.length) return '<div class="empty">No hay productos.</div>';
-      return '<table><thead><tr><th>Nombre</th><th>Código</th><th>Precio sin IVA</th><th>Tipo</th><th></th></tr></thead><tbody>' + items.map(function(p) { return '<tr><td><strong>' + esc(p.name) + '</strong></td><td>' + esc(p.code) + '</td><td>' + euro(p.price) + '</td><td><span class="status paid">Servicio</span></td><td><div class="row-actions"><button class="ghost" data-action="edit-product" data-id="' + p.id + '">Editar</button><button class="danger" data-action="delete-product" data-id="' + p.id + '">Borrar</button><button class="secondary" data-action="print-product" data-id="' + p.id + '">PDF</button></div></td></tr>'; }).join('') + '</tbody></table>';
+      return '<table><thead><tr><th>Nombre</th><th>Código</th><th>Precio sin IVA</th><th>Tipo</th><th>IVA</th><th></th></tr></thead><tbody>' + items.map(function(p) { return '<tr><td><strong>' + esc(p.name) + '</strong></td><td>' + esc(p.code) + '</td><td>' + euro(p.price) + '</td><td><span class="status paid">' + esc(p.kind || 'Servicio') + '</span></td><td>' + vatLabel(p.vat == null ? 21 : p.vat) + '</td><td><div class="row-actions"><button class="ghost" data-action="edit-product" data-id="' + p.id + '">Editar</button><button class="danger" data-action="delete-product" data-id="' + p.id + '">Borrar</button><button class="secondary" data-action="print-product" data-id="' + p.id + '">PDF</button></div></td></tr>'; }).join('') + '</tbody></table>';
     }
     function expenseTable(items) {
       if (!items.length) return '<div class="empty">No hay gastos.</div>';
-      return '<table><thead><tr><th>Número</th><th>Proveedor</th><th>Categoría</th><th>Fecha</th><th class="amount">Total</th><th></th></tr></thead><tbody>' + items.map(function(e) { return '<tr><td><strong>' + esc(e.id) + '</strong></td><td>' + esc(e.supplier) + '</td><td>' + esc(e.category) + '</td><td>' + esc(e.date) + '</td><td class="amount">' + euro(e.total) + '</td><td><div class="row-actions"><button class="ghost" data-action="edit-expense" data-id="' + e.id + '">Editar</button><button class="danger" data-action="delete-expense" data-id="' + e.id + '">Borrar</button><button class="secondary" data-action="print-expense" data-id="' + e.id + '">PDF</button></div></td></tr>'; }).join('') + '</tbody></table>';
+      return '<table><thead><tr><th>Número</th><th>Proveedor</th><th>Categoría</th><th>Fecha</th><th>IVA</th><th class="amount">Total</th><th></th></tr></thead><tbody>' + items.map(function(e) { return '<tr><td><strong>' + esc(e.id) + '</strong></td><td>' + esc(e.supplier) + '</td><td>' + esc(e.category) + '</td><td>' + esc(e.date) + '</td><td>' + vatLabel(e.vat == null ? 21 : e.vat) + '</td><td class="amount">' + euro(e.total) + '</td><td><div class="row-actions"><button class="ghost" data-action="edit-expense" data-id="' + e.id + '">Editar</button><button class="danger" data-action="delete-expense" data-id="' + e.id + '">Borrar</button><button class="secondary" data-action="print-expense" data-id="' + e.id + '">PDF</button></div></td></tr>'; }).join('') + '</tbody></table>';
     }
     function paymentTable(items) {
       if (!items.length) return '<div class="empty">No hay cobros pendientes.</div>';
-      return '<table><thead><tr><th>Factura</th><th>Cliente</th><th>Vencimiento</th><th class="amount">Importe</th><th></th></tr></thead><tbody>' + items.map(function(i) { return '<tr><td><strong>' + esc(i.id) + '</strong></td><td>' + esc(i.client) + '</td><td>30/10/2026</td><td class="amount">' + euro(i.total) + '</td><td><div class="row-actions"><button class="secondary" data-action="mark-paid" data-id="' + esc(i.id) + '">Marcar cobrada</button><button class="ghost" data-action="edit-invoice" data-id="' + esc(i.id) + '">Editar</button><button class="danger" data-action="delete-invoice" data-id="' + esc(i.id) + '">Borrar</button><button class="secondary" data-action="print-invoice" data-id="' + esc(i.id) + '">PDF</button></div></td></tr>'; }).join('') + '</tbody></table>';
+      return '<table><thead><tr><th>Factura</th><th>Cliente</th><th>Vencimiento</th><th class="amount">Importe</th><th></th></tr></thead><tbody>' + items.map(function(i) { return '<tr><td><strong>' + esc(i.id) + '</strong></td><td>' + esc(i.client) + '</td><td>' + esc(i.dueDate || 'Sin indicar') + '</td><td class="amount">' + euro(i.total) + '</td><td><div class="row-actions"><button class="secondary" data-action="mark-paid" data-id="' + esc(i.id) + '">Marcar cobrada</button><button class="ghost" data-action="edit-invoice" data-id="' + esc(i.id) + '">Editar</button><button class="danger" data-action="delete-invoice" data-id="' + esc(i.id) + '">Borrar</button><button class="secondary" data-action="print-invoice" data-id="' + esc(i.id) + '">PDF</button></div></td></tr>'; }).join('') + '</tbody></table>';
     }
 
     function renderProducts() {
       setPageMeta('Productos y servicios', 'Catálogo, precios e impuestos');
       $('workspace').innerHTML = '<div class="view-title"><div><h2>Productos y servicios</h2><p>Guarda lo que vendes para añadirlo a una factura rápidamente.</p></div><button class="primary" data-action="new-product">+ Nuevo producto</button></div>' +
-        '<div class="toolbar"><button class="secondary" data-action="print-all-products">Descargar productos en PDF</button></div><div class="card list-card">' + productTable(state.products) + '</div>' +
+        '<div class="toolbar"><input id="productSearch" placeholder="Buscar producto o código..."><button class="secondary" data-action="print-all-products">Descargar productos en PDF</button></div><div class="card list-card">' + productTable(state.products) + '</div>' +
         '<div class="mini-info">📦 Si vendes productos físicos, aquí también podrías controlar stock, almacenes y pedidos.</div>';
+      $('productSearch').addEventListener('input', filterProducts);
+    }
+    function filterProducts() {
+      var q = $('productSearch').value.toLowerCase().trim();
+      document.querySelector('.list-card').innerHTML = productTable(state.products.filter(function(item) { return (item.name + ' ' + item.code).toLowerCase().indexOf(q) >= 0; }));
     }
 
     function renderExpenses() {
       setPageMeta('Gastos', 'Registra compras, tickets y gastos del negocio');
-      var total = state.expenses.reduce(function(a,e) { return a + e.total; }, 0);
+      var total = state.expenses.reduce(function(a,e) { return a + Number(e.total || 0); }, 0);
+      var pendingTickets = state.expenses.filter(function(e) { return e.status === 'Pendiente' || e.status === 'Revisar'; }).length;
+      var vatSupported = state.expenses.reduce(function(a,e) { var rate = e.vat == null ? 21 : Number(e.vat); var amount = Number(e.total || 0); return a + (rate ? amount * rate / (100 + rate) : 0); }, 0);
+      var suppliers = state.expenses.reduce(function(list,e) { var name = String(e.supplier || '').trim(); if (name && list.indexOf(name) < 0) list.push(name); return list; }, []).length;
+      var expenseHint = state.expenses.length ? 'Los indicadores se calculan con los gastos registrados. Puedes editar cada gasto y su IVA desde la tabla.' : 'Todavía no tienes gastos registrados. Pulsa «+ Nuevo gasto» para añadir el primero.';
       $('workspace').innerHTML = '<div class="view-title"><div><h2>Gastos</h2><p>Controla lo que pagas y cuánto te cuesta el negocio.</p></div><button class="primary" data-action="new-expense">+ Nuevo gasto</button></div>' +
-        '<div class="cards">' + metric('Gastos registrados', euro(total), 'Este mes', '↓') + metric('Tickets pendientes', '2', 'De revisar', '▤') + metric('IVA soportado', euro(total * .21), 'Estimado', '€') + metric('Proveedores', '8', 'Activos', '♙') + '</div>' +
-        '<div class="toolbar"><button class="secondary" data-action="print-all-expenses">Descargar gastos en PDF</button></div><div class="card list-card">' + expenseTable(state.expenses) + '</div>' +
-        '<div class="mini-info">📷 En una versión completa, podrías hacer una foto del ticket y extraer automáticamente proveedor, fecha, IVA e importe.</div>';
+        '<div class="cards">' + metric('Gastos registrados', euro(total), state.expenses.length + ' registros', '↓') + metric('Tickets pendientes', pendingTickets, pendingTickets ? 'De revisar' : 'Sin revisar', '▤') + metric('IVA soportado', euro(vatSupported), state.expenses.length ? 'Calculado según IVA' : 'Sin datos', '€') + metric('Proveedores', suppliers, suppliers ? 'Activos' : 'Sin proveedores', '♙') + '</div>' +
+        '<div class="toolbar"><input id="expenseSearch" placeholder="Buscar proveedor o categoría..."><button class="secondary" data-action="print-all-expenses">Descargar gastos en PDF</button></div><div class="card list-card">' + expenseTable(state.expenses) + '</div>' +
+        '<div class="mini-info">' + expenseHint + '</div>';
+      $('expenseSearch').addEventListener('input', filterExpenses);
+    }
+    function filterExpenses() {
+      var q = $('expenseSearch').value.toLowerCase().trim();
+      document.querySelector('.list-card').innerHTML = expenseTable(state.expenses.filter(function(item) { return (item.supplier + ' ' + item.category + ' ' + item.id).toLowerCase().indexOf(q) >= 0; }));
     }
 
     function renderPayments() {
       setPageMeta('Cobros', 'Sigue el dinero que te deben y lo que ya has cobrado');
       var pending = state.invoices.filter(function(i) { return i.status === 'Pendiente'; });
+      var paid = state.invoices.filter(function(i) { return i.status === 'Pagada'; });
+      var pendingTotal = pending.reduce(function(a,i) { return a + Number(i.total || 0); }, 0);
+      var paidTotal = paid.reduce(function(a,i) { return a + Number(i.total || 0); }, 0);
+      var onlineCount = state.invoices.filter(function(i) { return i.paymentMethod === 'tarjeta'; }).length;
       $('workspace').innerHTML = '<div class="view-title"><div><h2>Cobros</h2><p>Marca facturas como cobradas y controla los vencimientos.</p></div><button class="secondary" data-action="reminders">Enviar recordatorios</button></div>' +
-        '<div class="cards">' + metric('Por cobrar', euro(pending.reduce(function(a,i) { return a + i.total; }, 0)), '2 facturas', '◷') + metric('Cobrado este mes', euro(3300), '+18% vs. anterior', '✓') + metric('Vencido', euro(0), 'Todo al día', '♡') + metric('Cobros online', '4', 'Este mes', '↗') + '</div>' +
+        '<div class="cards">' + metric('Por cobrar', euro(pendingTotal), pending.length + ' facturas', '◷') + metric('Cobrado', euro(paidTotal), paid.length + ' facturas pagadas', '✓') + metric('Pendiente de revisar', euro(state.invoices.filter(function(i) { return i.status === 'Borrador'; }).reduce(function(a,i) { return a + Number(i.total || 0); }, 0)), 'Borradores', '♡') + metric('Cobros con tarjeta', onlineCount, 'Registrados', '↗') + '</div>' +
         '<div class="toolbar"><button class="secondary" data-action="print-all-payments">Descargar cobros en PDF</button></div><div class="card list-card"><div class="card-head"><h3>Facturas pendientes</h3><span class="status pending">Requieren atención</span></div>' + paymentTable(pending) + '</div>' +
         '<div class="feature-grid" style="margin-top:18px">' + feature('✉','Recordatorios automáticos','Envía un aviso antes o después del vencimiento.') + feature('↗','Enlace de pago','Permite pagar desde la factura.') + feature('⇄','Conciliación bancaria','Relaciona movimientos con facturas.') + '</div>';
     }
@@ -545,16 +585,19 @@
     function openModal(title, body, onSubmit) {
       $('modal').innerHTML = '<div class="modal-head"><h3>' + title + '</h3><button class="close" data-action="close-modal">×</button></div>' + body;
       $('modalBackdrop').classList.add('open');
-      $('modal').querySelector('form').addEventListener('submit', function(e) { e.preventDefault(); onSubmit(new FormData(e.target)); });
+      var form = $('modal').querySelector('form');
+      if (form) form.addEventListener('submit', function(e) { e.preventDefault(); onSubmit(new FormData(e.target)); });
+      var firstField = $('modal').querySelector('input, select, textarea');
+      if (firstField) setTimeout(function() { firstField.focus(); }, 30);
     }
     function closeModal() { $('modalBackdrop').classList.remove('open'); }
     function newInvoice() {
       var firstProduct = state.products[0] || { name:'Servicio o producto', price:0 };
       var clientOptions = state.clients.map(function(c) { return '<option>' + esc(c.name) + '</option>'; }).join('');
-      var productOptions = state.products.map(function(p) { return '<option value="' + p.price + '">' + esc(p.name) + '</option>'; }).join('');
+      var productOptions = state.products.map(function(p) { return '<option value="' + esc(p.id) + '">' + esc(p.name) + '</option>'; }).join('');
       var accountOptions = state.accounts.map(function(a) { return '<label class="account-option"><input type="checkbox" name="accounts" value="' + a.id + '" checked><span>' + esc(a.name) + ' · ' + esc(a.iban) + '</span></label>'; }).join('');
-      openModal('Nueva factura', '<form class="form"><div class="form-grid"><div><label>Cliente</label><select name="client">' + clientOptions + '</select></div><div><label>Fecha</label><input name="date" value="' + today() + '"></div></div><label>Producto o servicio de referencia</label><select id="invoiceProduct" name="product">' + productOptions + '</select><div class="invoice-lines-card"><div class="card-head"><div><strong>Desglose de bases imponibles</strong><span style="display:block;color:#667085;font-size:12px;margin-top:3px">Añade una línea por cada base y tipo de IVA.</span></div><button type="button" class="secondary" data-action="add-invoice-line">+ Añadir línea</button></div><div id="invoiceLines">' + invoiceLineRow({ description:firstProduct.name, base:firstProduct.price, iva:Number(state.settings.defaultVat) }, true) + '</div><div class="invoice-summary"><div class="invoice-summary-row"><span>Base imponible total</span><strong id="invoiceBaseTotal">0,00 €</strong></div><div class="tax-summary" id="invoiceTaxSummary"></div><div class="invoice-summary-row total"><span>Total factura</span><strong id="invoiceGrandTotal">0,00 €</strong></div></div></div><div class="form-grid"><div><label>Tipo de cobro</label><select id="invoicePayment" name="payment"><option value="transferencia">Transferencia</option><option value="recibo">Recibo</option><option value="tarjeta">Tarjeta</option><option value="efectivo">Efectivo</option></select></div><div id="invoiceAccountWrap"><label>Cuentas bancarias que aparecerán en la factura</label><div class="account-options">' + accountOptions + '</div></div></div><div class="mini-info" id="invoicePaymentHint">Las cuentas seleccionadas aparecerán en la factura como cuentas de cobro.</div><label>Notas</label><textarea name="notes" placeholder="Condiciones de pago..."></textarea><div class="form-actions"><button type="button" class="ghost" data-action="close-modal">Cancelar</button><button class="primary">Crear factura</button></div></form>', function(data) { var lines = readInvoiceLines(); var totals = invoiceTotals(lines); var selectedIds = data.getAll('accounts'); var selectedAccounts = state.accounts.filter(function(a) { return selectedIds.some(function(id) { return String(a.id) === String(id); }); }); var accountLabels = selectedAccounts.map(function(a) { return a.name + ' · ' + a.iban; }); var commonIva = lines.length && lines.every(function(line) { return line.iva === lines[0].iva; }) ? lines[0].iva : null; var num = 'F-2026-' + String(state.invoices.length + 5).padStart(3,'0'); state.invoices.unshift({ id:num, client:data.get('client'), date:data.get('date'), status:'Borrador', subtotal:totals.base, total:totals.total, iva:commonIva, lines:lines, paymentMethod:data.get('payment'), paymentAccount:accountLabels.join(' · '), paymentAccounts:accountLabels, notes:data.get('notes') || '' }); closeModal(); state.view = 'facturas'; toast('Factura creada como borrador'); render(); });
-      $('invoiceProduct').addEventListener('change', function() { var product = state.products.find(function(p) { return String(p.price) === String($('invoiceProduct').value); }); var firstLine = $('invoiceLines').querySelector('.invoice-line'); if (product && firstLine) { firstLine.querySelector('[name="lineDescription"]').value = product.name; firstLine.querySelector('[name="lineBase"]').value = Number(product.price).toFixed(2); refreshInvoiceLineSummary(); } });
+      openModal('Nueva factura', '<form class="form"><div class="form-grid"><div><label>Cliente</label><select name="client">' + clientOptions + '</select></div><div><label>Fecha</label><input name="date" value="' + today() + '"></div></div><label>Producto o servicio de referencia</label><select id="invoiceProduct" name="product">' + productOptions + '</select><div class="invoice-lines-card"><div class="card-head"><div><strong>Desglose de bases imponibles</strong><span style="display:block;color:#667085;font-size:12px;margin-top:3px">Añade una línea por cada base y tipo de IVA.</span></div><button type="button" class="secondary" data-action="add-invoice-line">+ Añadir línea</button></div><div id="invoiceLines">' + invoiceLineRow({ description:firstProduct.name, base:firstProduct.price, iva:firstProduct.vat == null ? Number(state.settings.defaultVat) : Number(firstProduct.vat) }, true) + '</div><div class="invoice-summary"><div class="invoice-summary-row"><span>Base imponible total</span><strong id="invoiceBaseTotal">0,00 €</strong></div><div class="tax-summary" id="invoiceTaxSummary"></div><div class="invoice-summary-row total"><span>Total factura</span><strong id="invoiceGrandTotal">0,00 €</strong></div></div></div><div class="form-grid"><div><label>Tipo de cobro</label><select id="invoicePayment" name="payment"><option value="transferencia">Transferencia</option><option value="recibo">Recibo</option><option value="tarjeta">Tarjeta</option><option value="efectivo">Efectivo</option></select></div><div id="invoiceAccountWrap"><label>Cuentas bancarias que aparecerán en la factura</label><div class="account-options">' + accountOptions + '</div></div></div><div class="mini-info" id="invoicePaymentHint">Las cuentas seleccionadas aparecerán en la factura como cuentas de cobro.</div><label>Notas</label><textarea name="notes" placeholder="Condiciones de pago..."></textarea><div class="form-actions"><button type="button" class="ghost" data-action="close-modal">Cancelar</button><button class="primary">Crear factura</button></div></form>', function(data) { var lines = readInvoiceLines(); var totals = invoiceTotals(lines); var selectedIds = data.getAll('accounts'); var selectedAccounts = state.accounts.filter(function(a) { return selectedIds.some(function(id) { return String(a.id) === String(id); }); }); var accountLabels = selectedAccounts.map(function(a) { return a.name + ' · ' + a.iban; }); var commonIva = lines.length && lines.every(function(line) { return line.iva === lines[0].iva; }) ? lines[0].iva : null; var num = nextDocumentNumber('F-2026-', state.invoices); state.invoices.unshift({ id:num, client:data.get('client'), date:data.get('date'), status:'Borrador', subtotal:totals.base, total:totals.total, iva:commonIva, lines:lines, paymentMethod:data.get('payment'), paymentAccount:accountLabels.join(' · '), paymentAccounts:accountLabels, notes:data.get('notes') || '' }); closeModal(); state.view = 'facturas'; toast('Factura creada como borrador'); render(); });
+      $('invoiceProduct').addEventListener('change', function() { var product = state.products.find(function(p) { return String(p.id) === String($('invoiceProduct').value); }); var firstLine = $('invoiceLines').querySelector('.invoice-line'); if (product && firstLine) { firstLine.querySelector('[name="lineDescription"]').value = product.name; firstLine.querySelector('[name="lineBase"]').value = Number(product.price).toFixed(2); firstLine.querySelector('[name="lineIva"]').value = String(product.vat == null ? state.settings.defaultVat : product.vat); refreshInvoiceLineSummary(); } });
       $('invoiceLines').addEventListener('input', refreshInvoiceLineSummary);
       $('invoiceLines').addEventListener('change', refreshInvoiceLineSummary);
       $('invoicePayment').addEventListener('change', updatePaymentFields);
@@ -563,12 +606,12 @@
       updatePaymentFields();
     }
     function newClient() {
-      openModal('Nuevo cliente', '<form class="form"><label>Nombre o empresa</label><input name="name" required placeholder="Ej.: María López"><label>Correo electrónico</label><input name="email" type="email" required placeholder="cliente@ejemplo.com"><label>NIF/CIF</label><input name="tax" placeholder="12345678A"><div class="form-actions"><button type="button" class="ghost" data-action="close-modal">Cancelar</button><button class="primary">Guardar cliente</button></div></form>', function(data) { state.clients.push({ id:Date.now(), name:data.get('name'), detail:data.get('email'), tax:data.get('tax') || 'Pendiente' }); closeModal(); render(); });
+      openModal('Nuevo cliente', '<form class="form"><label>Nombre o empresa</label><input name="name" required placeholder="Ej.: María López"><div class="form-grid"><div><label>Correo electrónico</label><input name="email" type="email" required placeholder="cliente@ejemplo.com"></div><div><label>Teléfono</label><input name="phone" placeholder="600 000 000"></div></div><label>NIF/CIF</label><input name="tax" placeholder="12345678A"><label>Dirección</label><input name="address" placeholder="Calle, número, ciudad"><label>Notas</label><textarea name="notes" placeholder="Información adicional del cliente..."></textarea><div class="form-actions"><button type="button" class="ghost" data-action="close-modal">Cancelar</button><button class="primary">Guardar cliente</button></div></form>', function(data) { var name = data.get('name').trim(); if (!name) return; if (state.clients.some(function(c) { return c.name.toLowerCase() === name.toLowerCase(); })) { toast('Ya existe un cliente con ese nombre'); return; } state.clients.push({ id:Date.now(), name:name, detail:data.get('email'), phone:data.get('phone') || '', tax:data.get('tax') || 'Pendiente', address:data.get('address') || '', notes:data.get('notes') || '' }); closeModal(); toast('Cliente guardado'); render(); });
     }
     function editClient(id) {
       var client = state.clients.find(function(c) { return String(c.id) === String(id); });
       if (!client) return;
-      openModal('Editar cliente', '<form class="form"><label>Nombre o empresa</label><input name="name" required value="' + esc(client.name) + '"><label>Correo electrónico</label><input name="email" type="email" required value="' + esc(client.detail) + '"><label>NIF/CIF</label><input name="tax" value="' + esc(client.tax) + '"><div class="form-actions"><button type="button" class="ghost" data-action="close-modal">Cancelar</button><button class="primary">Guardar cambios</button></div></form>', function(data) { var oldName = client.name; client.name = data.get('name'); client.detail = data.get('email'); client.tax = data.get('tax') || 'Pendiente'; state.invoices.forEach(function(invoice) { if (invoice.client === oldName) invoice.client = client.name; }); state.quotes.forEach(function(quote) { if (quote.client === oldName) quote.client = client.name; }); closeModal(); toast('Cliente modificado'); render(); });
+      openModal('Editar cliente', '<form class="form"><label>Nombre o empresa</label><input name="name" required value="' + esc(client.name) + '"><div class="form-grid"><div><label>Correo electrónico</label><input name="email" type="email" required value="' + esc(client.detail) + '"></div><div><label>Teléfono</label><input name="phone" value="' + esc(client.phone || '') + '"></div></div><label>NIF/CIF</label><input name="tax" value="' + esc(client.tax) + '"><label>Dirección</label><input name="address" value="' + esc(client.address || '') + '"><label>Notas</label><textarea name="notes" placeholder="Información adicional del cliente...">' + esc(client.notes || '') + '</textarea><div class="form-actions"><button type="button" class="ghost" data-action="close-modal">Cancelar</button><button class="primary">Guardar cambios</button></div></form>', function(data) { var oldName = client.name; var nextName = data.get('name').trim(); if (!nextName) return; if (state.clients.some(function(c) { return c !== client && c.name.toLowerCase() === nextName.toLowerCase(); })) { toast('Ya existe un cliente con ese nombre'); return; } client.name = nextName; client.detail = data.get('email'); client.phone = data.get('phone') || ''; client.tax = data.get('tax') || 'Pendiente'; client.address = data.get('address') || ''; client.notes = data.get('notes') || ''; state.invoices.forEach(function(invoice) { if (invoice.client === oldName) invoice.client = client.name; }); state.quotes.forEach(function(quote) { if (quote.client === oldName) quote.client = client.name; }); closeModal(); toast('Cliente modificado'); render(); });
     }
     function deleteClient(id) {
       var client = state.clients.find(function(c) { return String(c.id) === String(id); });
@@ -576,12 +619,12 @@
       openModal('Borrar cliente', '<form class="form"><p style="margin:4px 0 0;color:#475467;line-height:1.5">¿Seguro que quieres borrar a <strong>' + esc(client.name) + '</strong>? Sus facturas y presupuestos se conservarán.</p><div class="form-actions"><button type="button" class="ghost" data-action="close-modal">Cancelar</button><button class="danger">Borrar cliente</button></div></form>', function() { state.clients = state.clients.filter(function(c) { return String(c.id) !== String(id); }); closeModal(); toast('Cliente borrado'); render(); });
     }
     function newProduct() {
-      openModal('Nuevo producto o servicio', '<form class="form"><label>Nombre</label><input name="name" required placeholder="Ej.: Asesoría mensual"><div class="form-grid"><div><label>Código</label><input name="code" placeholder="ASE-001"></div><div><label>Precio sin IVA (€)</label><input name="price" required type="number" step="0.01" placeholder="0,00"></div></div><div class="form-actions"><button type="button" class="ghost" data-action="close-modal">Cancelar</button><button class="primary">Guardar producto</button></div></form>', function(data) { state.products.push({ id:Date.now(), name:data.get('name'), code:data.get('code') || 'SIN-CÓDIGO', price:Number(data.get('price')) || 0 }); closeModal(); render(); });
+      openModal('Nuevo producto o servicio', '<form class="form"><label>Nombre</label><input name="name" required placeholder="Ej.: Asesoría mensual"><div class="form-grid"><div><label>Código</label><input name="code" placeholder="ASE-001"></div><div><label>Precio sin IVA (€)</label><input name="price" required type="number" min="0" step="0.01" placeholder="0,00"></div></div><div class="form-grid"><div><label>Tipo</label><select name="kind"><option>Servicio</option><option>Producto</option></select></div><div><label>IVA habitual</label><select name="vat">' + vatOptions(state.settings.defaultVat) + '</select></div></div><div class="form-actions"><button type="button" class="ghost" data-action="close-modal">Cancelar</button><button class="primary">Guardar producto</button></div></form>', function(data) { state.products.push({ id:Date.now(), name:data.get('name'), code:data.get('code') || 'SIN-CÓDIGO', price:Number(data.get('price')) || 0, kind:data.get('kind') || 'Servicio', vat:Number(data.get('vat')) }); closeModal(); toast('Producto guardado'); render(); });
     }
     function editProduct(id) {
       var product = state.products.find(function(p) { return String(p.id) === String(id); });
       if (!product) return;
-      openModal('Editar producto o servicio', '<form class="form"><label>Nombre</label><input name="name" required value="' + esc(product.name) + '"><div class="form-grid"><div><label>Código</label><input name="code" value="' + esc(product.code) + '"></div><div><label>Precio sin IVA (€)</label><input name="price" required type="number" step="0.01" value="' + Number(product.price || 0).toFixed(2) + '"></div></div><div class="form-actions"><button type="button" class="ghost" data-action="close-modal">Cancelar</button><button class="primary">Guardar cambios</button></div></form>', function(data) { product.name = data.get('name'); product.code = data.get('code') || 'SIN-CÓDIGO'; product.price = Number(data.get('price')) || 0; closeModal(); toast('Producto modificado'); render(); });
+      openModal('Editar producto o servicio', '<form class="form"><label>Nombre</label><input name="name" required value="' + esc(product.name) + '"><div class="form-grid"><div><label>Código</label><input name="code" value="' + esc(product.code) + '"></div><div><label>Precio sin IVA (€)</label><input name="price" required type="number" min="0" step="0.01" value="' + Number(product.price || 0).toFixed(2) + '"></div></div><div class="form-grid"><div><label>Tipo</label><select name="kind"><option' + ((product.kind || 'Servicio') === 'Servicio' ? ' selected' : '') + '>Servicio</option><option' + (product.kind === 'Producto' ? ' selected' : '') + '>Producto</option></select></div><div><label>IVA habitual</label><select name="vat">' + vatOptions(product.vat == null ? state.settings.defaultVat : product.vat) + '</select></div></div><div class="form-actions"><button type="button" class="ghost" data-action="close-modal">Cancelar</button><button class="primary">Guardar cambios</button></div></form>', function(data) { product.name = data.get('name'); product.code = data.get('code') || 'SIN-CÓDIGO'; product.price = Number(data.get('price')) || 0; product.kind = data.get('kind') || 'Servicio'; product.vat = Number(data.get('vat')); closeModal(); toast('Producto modificado'); render(); });
     }
     function deleteProduct(id) {
       var product = state.products.find(function(p) { return String(p.id) === String(id); });
@@ -589,12 +632,12 @@
       openModal('Borrar producto', '<form class="form"><p style="margin:4px 0 0;color:#475467;line-height:1.5">¿Seguro que quieres borrar <strong>' + esc(product.name) + '</strong>? Las facturas ya creadas conservarán sus datos.</p><div class="form-actions"><button type="button" class="ghost" data-action="close-modal">Cancelar</button><button class="danger">Borrar producto</button></div></form>', function() { state.products = state.products.filter(function(p) { return String(p.id) !== String(id); }); closeModal(); toast('Producto borrado'); render(); });
     }
     function newExpense() {
-      openModal('Nuevo gasto', '<form class="form"><label>Proveedor</label><input name="supplier" required placeholder="Ej.: Papelería Central"><div class="form-grid"><div><label>Categoría</label><select name="category"><option>Material</option><option>Suministros</option><option>Oficina</option><option>Transporte</option><option>Otros</option></select></div><div><label>Importe (€)</label><input name="total" required type="number" step="0.01"></div></div><label>Fecha</label><input name="date" value="' + today() + '"><div class="form-actions"><button type="button" class="ghost" data-action="close-modal">Cancelar</button><button class="primary">Guardar gasto</button></div></form>', function(data) { state.expenses.unshift({ id:'G-' + String(state.expenses.length + 15).padStart(3,'0'), supplier:data.get('supplier'), category:data.get('category'), date:data.get('date'), total:Number(data.get('total')) || 0 }); closeModal(); render(); });
+      openModal('Nuevo gasto', '<form class="form"><label>Proveedor</label><input name="supplier" required placeholder="Ej.: Papelería Central"><div class="form-grid"><div><label>Categoría</label><select name="category"><option>Material</option><option>Suministros</option><option>Oficina</option><option>Transporte</option><option>Otros</option></select></div><div><label>Importe total (€)</label><input name="total" required type="number" min="0" step="0.01"></div></div><div class="form-grid"><div><label>Fecha</label><input name="date" value="' + today() + '"></div><div><label>IVA incluido</label><select name="vat">' + vatOptions(21) + '</select></div></div><div class="form-actions"><button type="button" class="ghost" data-action="close-modal">Cancelar</button><button class="primary">Guardar gasto</button></div></form>', function(data) { state.expenses.unshift({ id:nextDocumentNumber('G-', state.expenses), supplier:data.get('supplier'), category:data.get('category'), date:data.get('date'), total:Number(data.get('total')) || 0, vat:Number(data.get('vat')) }); closeModal(); toast('Gasto guardado'); render(); });
     }
     function editExpense(id) {
       var expense = state.expenses.find(function(e) { return String(e.id) === String(id); });
       if (!expense) return;
-      openModal('Editar gasto', '<form class="form"><div class="form-grid"><div><label>Número</label><input name="number" value="' + esc(expense.id) + '"></div><div><label>Fecha</label><input name="date" value="' + esc(expense.date) + '"></div></div><label>Proveedor</label><input name="supplier" required value="' + esc(expense.supplier) + '"><div class="form-grid"><div><label>Categoría</label><select name="category"><option' + (expense.category === 'Material' ? ' selected' : '') + '>Material</option><option' + (expense.category === 'Suministros' ? ' selected' : '') + '>Suministros</option><option' + (expense.category === 'Oficina' ? ' selected' : '') + '>Oficina</option><option' + (expense.category === 'Transporte' ? ' selected' : '') + '>Transporte</option><option' + (expense.category === 'Otros' ? ' selected' : '') + '>Otros</option></select></div><div><label>Importe (€)</label><input name="total" required type="number" step="0.01" value="' + Number(expense.total || 0).toFixed(2) + '"></div></div><div class="form-actions"><button type="button" class="ghost" data-action="close-modal">Cancelar</button><button class="primary">Guardar cambios</button></div></form>', function(data) { expense.id = data.get('number') || expense.id; expense.date = data.get('date'); expense.supplier = data.get('supplier'); expense.category = data.get('category'); expense.total = Number(data.get('total')) || 0; closeModal(); toast('Gasto modificado'); render(); });
+      openModal('Editar gasto', '<form class="form"><div class="form-grid"><div><label>Número</label><input name="number" value="' + esc(expense.id) + '"></div><div><label>Fecha</label><input name="date" value="' + esc(expense.date) + '"></div></div><label>Proveedor</label><input name="supplier" required value="' + esc(expense.supplier) + '"><div class="form-grid"><div><label>Categoría</label><select name="category"><option' + (expense.category === 'Material' ? ' selected' : '') + '>Material</option><option' + (expense.category === 'Suministros' ? ' selected' : '') + '>Suministros</option><option' + (expense.category === 'Oficina' ? ' selected' : '') + '>Oficina</option><option' + (expense.category === 'Transporte' ? ' selected' : '') + '>Transporte</option><option' + (expense.category === 'Otros' ? ' selected' : '') + '>Otros</option></select></div><div><label>Importe total (€)</label><input name="total" required type="number" min="0" step="0.01" value="' + Number(expense.total || 0).toFixed(2) + '"></div></div><label>IVA incluido</label><select name="vat">' + vatOptions(expense.vat == null ? 21 : expense.vat) + '</select><div class="form-actions"><button type="button" class="ghost" data-action="close-modal">Cancelar</button><button class="primary">Guardar cambios</button></div></form>', function(data) { expense.id = data.get('number') || expense.id; expense.date = data.get('date'); expense.supplier = data.get('supplier'); expense.category = data.get('category'); expense.total = Number(data.get('total')) || 0; expense.vat = Number(data.get('vat')); closeModal(); toast('Gasto modificado'); render(); });
     }
     function deleteExpense(id) {
       var expense = state.expenses.find(function(e) { return String(e.id) === String(id); });
@@ -603,7 +646,7 @@
     }
     function newQuote() {
       var clientOptions = state.clients.map(function(c) { return '<option>' + esc(c.name) + '</option>'; }).join('');
-      openModal('Nuevo presupuesto', '<form class="form"><div class="form-grid"><div><label>Cliente</label><select name="client">' + clientOptions + '</select></div><div><label>Válido hasta</label><input name="date" value="31/12/2026"></div></div><label>Descripción</label><textarea name="description" required placeholder="Ej.: Consultoría inicial"></textarea><div class="form-grid"><div><label>Total (€)</label><input name="total" required type="number" step="0.01"></div><div><label>Estado</label><select name="status"><option>Pendiente</option><option>Aceptado</option><option>Rechazado</option><option>Borrador</option></select></div></div><label>Notas</label><textarea name="notes" placeholder="Condiciones del presupuesto..."></textarea><div class="form-actions"><button type="button" class="ghost" data-action="close-modal">Cancelar</button><button class="primary">Guardar presupuesto</button></div></form>', function(data) { var num = 'P-2026-' + String(state.quotes.length + 7).padStart(3,'0'); state.quotes.unshift({ id:num, client:data.get('client'), date:data.get('date'), status:data.get('status'), total:Number(data.get('total')) || 0, description:data.get('description'), notes:data.get('notes') || '' }); closeModal(); state.view = 'presupuestos'; toast('Presupuesto guardado'); render(); });
+      openModal('Nuevo presupuesto', '<form class="form"><div class="form-grid"><div><label>Cliente</label><select name="client">' + clientOptions + '</select></div><div><label>Válido hasta</label><input name="date" value="31/12/2026"></div></div><label>Descripción</label><textarea name="description" required placeholder="Ej.: Consultoría inicial"></textarea><div class="form-grid"><div><label>Total (€)</label><input name="total" required type="number" min="0" step="0.01"></div><div><label>Estado</label><select name="status"><option>Pendiente</option><option>Aceptado</option><option>Rechazado</option><option>Borrador</option></select></div></div><label>Notas</label><textarea name="notes" placeholder="Condiciones del presupuesto..."></textarea><div class="form-actions"><button type="button" class="ghost" data-action="close-modal">Cancelar</button><button class="primary">Guardar presupuesto</button></div></form>', function(data) { var num = nextDocumentNumber('P-2026-', state.quotes); state.quotes.unshift({ id:num, client:data.get('client'), date:data.get('date'), status:data.get('status'), total:Number(data.get('total')) || 0, description:data.get('description'), notes:data.get('notes') || '' }); closeModal(); state.view = 'presupuestos'; toast('Presupuesto guardado'); render(); });
     }
     function editQuote(id) {
       var quote = state.quotes.find(function(q) { return String(q.id) === String(id); });
@@ -711,7 +754,7 @@
     function printableClientBlock(client) {
       var invoices = state.invoices.filter(function(invoice) { return invoice.client === client.name; });
       var rows = invoices.length ? invoices.map(function(invoice) { return '<tr><td>' + esc(invoice.id) + '</td><td>' + esc(invoice.date) + '</td><td>' + esc(invoice.status) + '</td><td class="num">' + euro(invoice.total) + '</td></tr>'; }).join('') : '<tr><td colspan="4">No hay facturas asociadas.</td></tr>';
-      return '<section class="invoice-paper"><div class="print-head"><div><img src="' + new URL('logo_ruiz_rivas.png', document.location.href).href + '" alt="Ruiz y Rivas Consultores"><h1>Ruiz y Rivas Consultores</h1></div><div class="print-title"><strong>CLIENTE</strong><span>Ficha</span></div></div><div class="print-meta"><div><strong>Nombre o empresa</strong><span>' + esc(client.name) + '</span></div><div><strong>Correo</strong><span>' + esc(client.detail) + '</span></div><div><strong>NIF/CIF</strong><span>' + esc(client.tax) + '</span></div><div><strong>Facturas</strong><span>' + invoices.length + '</span></div></div><h2 style="font-size:16px;margin:0 0 10px">Historial de facturas</h2><table class="print-lines"><thead><tr><th>Número</th><th>Fecha</th><th>Estado</th><th class="num">Total</th></tr></thead><tbody>' + rows + '</tbody></table></section>';
+      return '<section class="invoice-paper"><div class="print-head"><div><img src="' + new URL('logo_ruiz_rivas.png', document.location.href).href + '" alt="Ruiz y Rivas Consultores"><h1>Ruiz y Rivas Consultores</h1></div><div class="print-title"><strong>CLIENTE</strong><span>Ficha</span></div></div><div class="print-meta"><div><strong>Nombre o empresa</strong><span>' + esc(client.name) + '</span></div><div><strong>Correo</strong><span>' + esc(client.detail || 'Sin indicar') + '</span></div><div><strong>Teléfono</strong><span>' + esc(client.phone || 'Sin indicar') + '</span></div><div><strong>NIF/CIF</strong><span>' + esc(client.tax || 'Pendiente') + '</span></div></div><div class="print-meta"><div><strong>Dirección</strong><span>' + esc(client.address || 'Sin indicar') + '</span></div><div><strong>Facturas</strong><span>' + invoices.length + '</span></div><div><strong>Notas</strong><span>' + esc(client.notes || '—') + '</span></div></div><h2 style="font-size:16px;margin:0 0 10px">Historial de facturas</h2><table class="print-lines"><thead><tr><th>Número</th><th>Fecha</th><th>Estado</th><th class="num">Total</th></tr></thead><tbody>' + rows + '</tbody></table></section>';
     }
     function printClient(id) {
       var client = state.clients.find(function(c) { return String(c.id) === String(id); });
@@ -734,8 +777,8 @@
       openPrintDocument('Presupuestos Ruiz y Rivas Consultores', state.quotes.map(printableQuoteBlock).join(''));
     }
     function printableProductBlock(productList) {
-      var rows = productList.map(function(product) { return '<tr><td>' + esc(product.name) + '</td><td>' + esc(product.code) + '</td><td>Servicio</td><td class="num">' + euro(product.price) + '</td></tr>'; }).join('');
-      return '<section class="invoice-paper"><div class="print-head"><div><img src="' + new URL('logo_ruiz_rivas.png', document.location.href).href + '" alt="Ruiz y Rivas Consultores"><h1>Ruiz y Rivas Consultores</h1></div><div class="print-title"><strong>PRODUCTOS</strong><span>Catálogo</span></div></div><table class="print-lines"><thead><tr><th>Producto o servicio</th><th>Código</th><th>Tipo</th><th class="num">Precio sin IVA</th></tr></thead><tbody>' + rows + '</tbody></table></section>';
+      var rows = productList.map(function(product) { return '<tr><td>' + esc(product.name) + '</td><td>' + esc(product.code) + '</td><td>' + esc(product.kind || 'Servicio') + '</td><td>' + vatLabel(product.vat == null ? 21 : product.vat) + '</td><td class="num">' + euro(product.price) + '</td></tr>'; }).join('');
+      return '<section class="invoice-paper"><div class="print-head"><div><img src="' + new URL('logo_ruiz_rivas.png', document.location.href).href + '" alt="Ruiz y Rivas Consultores"><h1>Ruiz y Rivas Consultores</h1></div><div class="print-title"><strong>PRODUCTOS</strong><span>Catálogo</span></div></div><table class="print-lines"><thead><tr><th>Producto o servicio</th><th>Código</th><th>Tipo</th><th>IVA</th><th class="num">Precio sin IVA</th></tr></thead><tbody>' + rows + '</tbody></table></section>';
     }
     function printProduct(id) {
       var product = state.products.find(function(p) { return String(p.id) === String(id); });
@@ -746,9 +789,9 @@
       openPrintDocument('Productos Ruiz y Rivas Consultores', printableProductBlock(state.products));
     }
     function printableExpenseBlock(expenseList) {
-      var rows = expenseList.map(function(expense) { return '<tr><td>' + esc(expense.id) + '</td><td>' + esc(expense.supplier) + '</td><td>' + esc(expense.category) + '</td><td>' + esc(expense.date) + '</td><td class="num">' + euro(expense.total) + '</td></tr>'; }).join('');
+      var rows = expenseList.map(function(expense) { return '<tr><td>' + esc(expense.id) + '</td><td>' + esc(expense.supplier) + '</td><td>' + esc(expense.category) + '</td><td>' + esc(expense.date) + '</td><td>' + vatLabel(expense.vat == null ? 21 : expense.vat) + '</td><td class="num">' + euro(expense.total) + '</td></tr>'; }).join('');
       var total = expenseList.reduce(function(sum, expense) { return sum + Number(expense.total || 0); }, 0);
-      return '<section class="invoice-paper"><div class="print-head"><div><img src="' + new URL('logo_ruiz_rivas.png', document.location.href).href + '" alt="Ruiz y Rivas Consultores"><h1>Ruiz y Rivas Consultores</h1></div><div class="print-title"><strong>GASTOS</strong><span>Registro</span></div></div><table class="print-lines"><thead><tr><th>Número</th><th>Proveedor</th><th>Categoría</th><th>Fecha</th><th class="num">Total</th></tr></thead><tbody>' + rows + '</tbody></table><div class="print-totals" style="max-width:280px;margin-left:auto"><div class="grand"><span>Total gastos</span><strong>' + euro(total) + '</strong></div></div></section>';
+      return '<section class="invoice-paper"><div class="print-head"><div><img src="' + new URL('logo_ruiz_rivas.png', document.location.href).href + '" alt="Ruiz y Rivas Consultores"><h1>Ruiz y Rivas Consultores</h1></div><div class="print-title"><strong>GASTOS</strong><span>Registro</span></div></div><table class="print-lines"><thead><tr><th>Número</th><th>Proveedor</th><th>Categoría</th><th>Fecha</th><th>IVA</th><th class="num">Total</th></tr></thead><tbody>' + rows + '</tbody></table><div class="print-totals" style="max-width:280px;margin-left:auto"><div class="grand"><span>Total gastos</span><strong>' + euro(total) + '</strong></div></div></section>';
     }
     function printExpense(id) {
       var expense = state.expenses.find(function(e) { return String(e.id) === String(id); });
@@ -818,7 +861,7 @@
       if (a === 'reminders') toast('Recordatorios preparados para las facturas pendientes.');
       if (a === 'save-settings') saveSettingsFromForm();
       if (a === 'client-detail') clientDetail(action.dataset.id);
-      if (a === 'convert-quote') { var q = state.quotes.find(function(x) { return x.id === action.dataset.id; }); if (q) { state.invoices.unshift({ id:'F-2026-' + String(state.invoices.length + 5).padStart(3,'0'), client:q.client, date:today(), status:'Borrador', total:q.total }); q.status = 'Aceptado'; toast('Presupuesto convertido en factura'); render(); } }
+      if (a === 'convert-quote') { var q = state.quotes.find(function(x) { return x.id === action.dataset.id; }); if (q) { state.invoices.unshift({ id:nextDocumentNumber('F-2026-', state.invoices), client:q.client, date:today(), status:'Borrador', total:q.total, subtotal:q.total, lines:[{ description:q.description || 'Servicio o producto', base:Number(q.total || 0), iva:Number(state.settings.defaultVat) }] }); q.status = 'Aceptado'; toast('Presupuesto convertido en factura'); render(); } }
       if (a === 'mark-paid') { var i = state.invoices.find(function(x) { return x.id === action.dataset.id; }); if (i) { i.status = 'Pagada'; toast('Factura marcada como cobrada'); render(); } }
       if (a === 'new-quote') newQuote();
     });
@@ -829,6 +872,7 @@
       var destination = q.indexOf('fact') >= 0 ? 'facturas' : q.indexOf('presup') >= 0 ? 'presupuestos' : q.indexOf('client') >= 0 ? 'clientes' : q.indexOf('product') >= 0 || q.indexOf('servic') >= 0 ? 'productos' : q.indexOf('gasto') >= 0 ? 'gastos' : q.indexOf('cobr') >= 0 ? 'cobros' : q.indexOf('informe') >= 0 ? 'informes' : null;
       if (destination) { state.view = destination; this.value = ''; render(); } else toast('Prueba con: facturas, clientes, productos, gastos o informes.');
     });
+    document.addEventListener('keydown', function(e) { if (e.key === 'Escape' && $('modalBackdrop').classList.contains('open')) closeModal(); });
     $('modalBackdrop').addEventListener('click', function(e) { if (e.target === $('modalBackdrop')) closeModal(); });
     render();
   </script>
@@ -862,6 +906,9 @@
 
     function localSnapshot() {
       return {
+        version: 2,
+        initialized: true,
+        updatedAt: new Date().toISOString(),
         clients: window.state.clients,
         products: window.state.products,
         invoices: window.state.invoices,
@@ -903,6 +950,22 @@
       }
 
       const remote = snapshot.data() || {};
+      const local = localSnapshot();
+      const remoteHasRecords = ['clients','products','invoices','quotes','expenses','accounts'].some(function(key) { return Array.isArray(remote[key]) && remote[key].length; });
+      const localHasRecords = ['clients','products','invoices','quotes','expenses','accounts'].some(function(key) { return Array.isArray(local[key]) && local[key].length; });
+      if (remote.initialized !== true && !remoteHasRecords && localHasRecords) {
+        sharedReady = true;
+        try {
+          setSyncStatus('saving', 'Guardando en la nube...');
+          await setDoc(sharedDoc, local);
+          setSyncStatus('online', 'Sincronizado');
+        } catch (error) {
+          console.error('Error al migrar los datos locales:', error);
+          setSyncStatus('error', 'No se pudo conectar');
+        }
+        return;
+      }
+      const previousSuppress = Boolean(window.suppressSharedSave);
       window.suppressSharedSave = true;
       window.state.clients = Array.isArray(remote.clients) ? remote.clients : window.state.clients;
       window.state.products = Array.isArray(remote.products) ? remote.products : window.state.products;
@@ -911,10 +974,9 @@
       window.state.expenses = Array.isArray(remote.expenses) ? remote.expenses : window.state.expenses;
       window.state.accounts = Array.isArray(remote.accounts) ? remote.accounts : window.state.accounts;
       window.state.settings = Object.assign({}, window.state.settings, remote.settings || {});
-      window.suppressSharedSave = false;
       sharedReady = true;
       setSyncStatus('online', 'Sincronizado');
-      window.render();
+      try { window.render(); } finally { window.suppressSharedSave = previousSuppress; }
     }, function(error) {
       console.error('Error leyendo Firebase:', error);
       sharedReady = true;
