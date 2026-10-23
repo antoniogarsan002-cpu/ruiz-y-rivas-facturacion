@@ -477,6 +477,32 @@
       var info = { bancos:['Bancos','Aquí podrás conectar cuentas y conciliar movimientos.'], inventario:['Inventario','Aquí podrás controlar stock, almacenes y pedidos.'], equipo:['Equipo','Aquí podrás crear usuarios y configurar permisos.'], electronica:['Factura electrónica','Aquí podrás preparar el envío electrónico de facturas.'], importar:['Importar datos','Puedes preparar una importación de clientes, productos o facturas.'], integraciones:['Integraciones','Aquí podrás conectar tu tienda, banco o aplicaciones.'] }[key] || ['Opción','Esta opción está preparada para ampliarse.'];
       openModal(info[0], '<form class="form"><div class="mini-info">' + info[1] + '</div><div class="form-actions"><button type="button" class="primary" data-action="close-modal">Cerrar</button></div></form>', function() { closeModal(); });
     }
+    function backupData() {
+      return { version:1, app:'Ruiz y Rivas Consultores', createdAt:new Date().toISOString(), data:{ clients:state.clients, products:state.products, invoices:state.invoices, quotes:state.quotes, expenses:state.expenses, accounts:state.accounts, settings:state.settings } };
+    }
+    function exportBackup() {
+      var blob = new Blob([JSON.stringify(backupData(), null, 2)], { type:'application/json' });
+      var url = URL.createObjectURL(blob);
+      var link = document.createElement('a');
+      link.href = url;
+      link.download = 'copia-ruiz-rivas-' + new Date().toISOString().slice(0,10) + '.json';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(function() { URL.revokeObjectURL(url); }, 800);
+      toast('Copia de seguridad descargada');
+    }
+    function restoreBackupPayload(payload) {
+      var data = payload && payload.data ? payload.data : payload;
+      if (!data || !Array.isArray(data.clients) || !Array.isArray(data.invoices) || !Array.isArray(data.products)) { toast('El archivo no parece una copia válida'); return; }
+      openModal('Restaurar copia de seguridad', '<form class="form"><p style="margin:4px 0 0;color:#475467;line-height:1.5">Se reemplazarán los datos actuales de esta empresa por los de la copia. Esta acción se sincronizará con todos los dispositivos.</p><div class="mini-info">Clientes: ' + data.clients.length + ' · Facturas: ' + data.invoices.length + ' · Productos: ' + data.products.length + '</div><div class="form-actions"><button type="button" class="ghost" data-action="close-modal">Cancelar</button><button class="danger">Restaurar copia</button></div></form>', function() { state.clients = data.clients; state.products = data.products; state.invoices = data.invoices; state.quotes = Array.isArray(data.quotes) ? data.quotes : []; state.expenses = Array.isArray(data.expenses) ? data.expenses : []; state.accounts = Array.isArray(data.accounts) ? data.accounts : []; state.settings = Object.assign({}, state.settings, data.settings || {}); closeModal(); toast('Copia restaurada y sincronizada'); render(); });
+    }
+    function importBackupFile(file) {
+      if (!file) return;
+      var reader = new FileReader();
+      reader.onload = function() { try { restoreBackupPayload(JSON.parse(reader.result)); } catch (error) { toast('No se pudo leer la copia de seguridad'); } };
+      reader.readAsText(file);
+    }
     function deleteAccount(id) {
       var account = state.accounts.find(function(a) { return String(a.id) === String(id); });
       if (!account) return;
@@ -490,8 +516,10 @@
         '<div class="two-columns"><form id="settingsForm" class="card form"><h3 style="margin:0 0 4px;font-size:16px">Datos de la empresa</h3><p style="margin:0;color:#667085;font-size:12px">Aparecerán en tus facturas y documentos PDF.</p><label>Nombre comercial</label><input name="companyName" value="' + esc(s.companyName) + '" required><label>NIF/CIF</label><input name="taxId" value="' + esc(s.taxId) + '"><label>Dirección</label><input name="address" value="' + esc(s.address) + '"><label>Correo</label><input name="email" type="email" value="' + esc(s.email) + '"><div class="form-actions"><button class="secondary">Guardar datos de empresa</button></div></form>' +
         '<div class="card"><h3 style="margin:0 0 4px;font-size:16px">Opciones de facturación</h3><div class="setting-line"><div><strong>Numeración automática</strong><span>F-2026-001, F-2026-002...</span></div>' + settingSwitch('autoNumbering') + '</div><div class="setting-line"><div><strong>IVA por defecto: ' + vatLabel(s.defaultVat) + '</strong><span>Se aplicará a nuevas facturas</span></div><button class="ghost" data-action="edit-default-vat">Cambiar</button></div><div class="setting-line"><div><strong>Verifactu</strong><span>Preparado para facturación electrónica</span></div><button class="ghost" data-action="show-verifactu">Ver detalles</button></div><div class="setting-line"><div><strong>Recordatorios de pago</strong><span>Activar avisos de facturas pendientes</span></div>' + settingSwitch('reminders') + '</div><div class="setting-line"><div><strong>Plantilla de factura</strong><span>' + esc(s.template) + '</span></div><button class="ghost" data-action="customize-template">Personalizar</button></div></div></div>' +
         '<div class="card" style="margin-top:18px"><div class="card-head"><div><h3 style="margin:0">Cuentas bancarias</h3><span style="color:#667085;font-size:12px">Se podrán elegir al crear una factura.</span></div><button class="secondary" data-action="new-account">+ Añadir cuenta</button></div><div>' + accountsHtml + '</div></div>' +
+        '<div class="card" style="margin-top:18px"><div class="card-head"><div><h3 style="margin:0">Copias de seguridad</h3><span style="color:#667085;font-size:12px">Guarda o restaura todos los datos de la empresa.</span></div><div class="toolbar" style="margin:0"><button class="secondary" data-action="backup-export">Descargar copia</button><button class="ghost" data-action="backup-import">Restaurar copia</button><input id="backupFile" type="file" accept="application/json,.json" style="display:none"></div></div><div class="mini-info">La copia incluye clientes, facturas, presupuestos, productos, gastos, cobros, cuentas y configuración.</div></div>' +
         '<div class="card" style="margin-top:18px"><div class="card-head"><h3>Más opciones</h3><span style="color:#667085;font-size:12px">Pulsa cualquier opción para ver para qué sirve.</span></div><div class="feature-grid">' + settingFeature('🏦','Bancos','Conectar cuentas y conciliar movimientos.','bancos') + settingFeature('📦','Inventario','Stock, almacenes y pedidos.','inventario') + settingFeature('♙','Equipo','Usuarios, permisos y asesoría.','equipo') + settingFeature('▤','Factura electrónica','Envío a organismos y clientes.','electronica') + settingFeature('↻','Importar datos','Clientes, productos y facturas desde Excel.','importar') + settingFeature('⚙','Integraciones','Conectar tienda, banco o aplicaciones.','integraciones') + '</div></div>';
       $('settingsForm').addEventListener('submit', function(e) { e.preventDefault(); saveSettingsFromForm(); });
+      $('backupFile').addEventListener('change', function(e) { importBackupFile(e.target.files[0]); e.target.value = ''; });
     }
 
     function openModal(title, body, onSubmit) {
@@ -758,6 +786,8 @@
       if (a === 'customize-template') customizeTemplate();
       if (a === 'show-verifactu') showVerifactu();
       if (a === 'settings-feature') openSettingsFeature(action.dataset.feature);
+      if (a === 'backup-export') exportBackup();
+      if (a === 'backup-import' && $('backupFile')) $('backupFile').click();
       if (a === 'add-invoice-line') addInvoiceLine();
       if (a === 'remove-invoice-line') removeInvoiceLine(action);
       if (a === 'print-invoice') printInvoice(action.dataset.id);
