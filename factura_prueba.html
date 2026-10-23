@@ -333,7 +333,7 @@
       $('invoicePrice').addEventListener('input', updateInvoicePreview);
       $('invoiceIva').addEventListener('change', updateInvoicePreview);
       $('invoicePayment').addEventListener('change', updatePaymentFields);
-      function updatePaymentFields() { var usesBank = $('invoicePayment').value === 'transferencia' || $('invoicePayment').value === 'recibo'; $('invoiceAccountWrap').style.display = usesBank ? 'block' : 'none'; $('invoicePaymentHint').textContent = usesBank ? 'La cuenta seleccionada aparecerá en la factura como cuenta de cobro.' : 'Este tipo de cobro no necesita mostrar una cuenta bancaria.'; }
+      function updatePaymentFields() { var usesBank = $('invoicePayment').value === 'transferencia' || $('invoicePayment').value === 'recibo'; $('invoiceAccountWrap').style.display = usesBank ? 'block' : 'none'; $('invoicePaymentHint').textContent = usesBank ? 'Las cuentas seleccionadas aparecerán en la factura como cuentas de cobro.' : 'Este tipo de cobro no necesita mostrar una cuenta bancaria.'; }
       function updateInvoicePreview() { $('invoiceTotalPreview').textContent = 'Total estimado: ' + euro((Number($('invoicePrice').value) || 0) * (1 + (Number($('invoiceIva').value) || 0) / 100)); }
       updatePaymentFields();
     }
