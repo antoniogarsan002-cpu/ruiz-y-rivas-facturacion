@@ -67,7 +67,7 @@
     .progress { height:8px; border-radius:9px; background:#eef0f4; overflow:hidden; }
     .progress i { display:block; height:100%; border-radius:9px; background:var(--primary); }
     .feature-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
-    .feature { border:1px solid var(--line); border-radius:12px; padding:15px; background:#fff; }
+    .feature { border:1px solid var(--line); border-radius:12px; padding:15px; background:#fff; color:var(--ink); text-align:left; width:100%; }
     .feature .ficon { font-size:20px; margin-bottom:8px; }
     .feature strong { display:block; font-size:13px; }
     .feature span { display:block; color:var(--muted); font-size:12px; line-height:1.4; margin-top:4px; }
@@ -116,7 +116,9 @@
     .setting-line:last-child { border-bottom:0; }
     .setting-line strong { display:block; font-size:13px; }
     .setting-line span { display:block; color:var(--muted); font-size:12px; margin-top:3px; }
-    .switch { width:40px; height:22px; border-radius:20px; background:var(--primary); position:relative; }
+    .switch { width:40px; height:22px; border:0; padding:0; border-radius:20px; background:var(--primary); position:relative; flex:0 0 auto; }
+    .switch.off { background:#d0d5dd; }
+    .switch.off:after { left:3px; right:auto; }
     .switch:after { content:''; position:absolute; right:3px; top:3px; width:16px; height:16px; border-radius:50%; background:#fff; }
     @media (max-width:900px) { .sidebar { width:210px; flex-basis:210px; } .cards { grid-template-columns:repeat(2,1fr); } .grid-2, .two-columns { grid-template-columns:1fr; } .invoice-line { grid-template-columns:1fr 1fr; } .invoice-line .line-description { grid-column:1 / -1; } }
     @media (max-width:650px) { .app { display:block; } .sidebar { width:100%; padding:12px; border-right:0; border-bottom:1px solid var(--line); } .brand { padding-bottom:10px; } .nav-label, .side-note { display:none; } .nav { display:grid; grid-template-columns:repeat(4,1fr); } .nav button { padding:8px 3px; justify-content:center; flex-direction:column; gap:2px; font-size:10px; } .nav button:nth-child(n+9) { display:none; } .topbar { padding:14px 16px; } .topbar p, .search { display:none; } .workspace { padding:18px 16px 28px; } .cards { gap:9px; } .card { padding:14px; } .metric .number { font-size:19px; } .feature-grid { grid-template-columns:1fr 1fr; } }
@@ -190,7 +192,18 @@
       accounts: [
         { id:1, name:'Cuenta principal', iban:'ES00 0000 0000 0000 0000 0000' },
         { id:2, name:'Cuenta secundaria', iban:'ES00 0000 0000 0000 0000 0001' }
-      ]
+      ],
+      settings: {
+        companyName:'Ruiz y Rivas Consultores',
+        taxId:'B12345678',
+        address:'Calle Mayor 1, Madrid',
+        email:'info@ruizyrivas.es',
+        defaultVat:21,
+        autoNumbering:true,
+        reminders:false,
+        template:'Moderna azul',
+        verifactu:true
+      }
     };
     var storageKey = 'ruiz-rivas-facturacion-v2';
     try {
@@ -202,6 +215,7 @@
         state.quotes = saved.quotes || state.quotes;
         state.expenses = saved.expenses || state.expenses;
         state.accounts = saved.accounts || state.accounts;
+        state.settings = Object.assign({}, state.settings, saved.settings || {});
       }
     } catch (e) {}
     var euro = function(n) { return Number(n).toLocaleString('es-ES', { style:'currency', currency:'EUR' }); };
@@ -254,7 +268,7 @@
     }
     var $ = function(id) { return document.getElementById(id); };
     function saveState() {
-      try { localStorage.setItem(storageKey, JSON.stringify({ clients:state.clients, products:state.products, invoices:state.invoices, quotes:state.quotes, expenses:state.expenses, accounts:state.accounts })); } catch (e) {}
+      try { localStorage.setItem(storageKey, JSON.stringify({ clients:state.clients, products:state.products, invoices:state.invoices, quotes:state.quotes, expenses:state.expenses, accounts:state.accounts, settings:state.settings })); } catch (e) {}
     }
     function toast(message) {
       $('toast').textContent = message;
@@ -374,21 +388,103 @@
         '<div class="feature-grid" style="margin-top:18px">' + feature('✉','Recordatorios automáticos','Envía un aviso antes o después del vencimiento.') + feature('↗','Enlace de pago','Permite pagar desde la factura.') + feature('⇄','Conciliación bancaria','Relaciona movimientos con facturas.') + '</div>';
     }
 
+    function vatLabel(rate) { return Number(rate) ? Number(rate) + '%' : 'Sin IVA'; }
+    function settingSwitch(name) { return '<button type="button" class="switch ' + (state.settings[name] ? '' : 'off') + '" aria-label="Cambiar opción" data-action="toggle-setting" data-setting="' + name + '"></button>'; }
+    function settingFeature(icon, name, desc, key) { return '<button type="button" class="feature" data-action="settings-feature" data-feature="' + key + '"><div class="ficon">' + icon + '</div><strong>' + name + '</strong><span>' + desc + '</span></button>'; }
+    function monthlySales() {
+      var labels = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+      var values = labels.map(function() { return 0; });
+      state.invoices.forEach(function(invoice) { var parts = String(invoice.date || '').split('/'); var month = Number(parts[1]) - 1; if (month >= 0 && month < 12) values[month] += Number(invoice.total || 0); });
+      return labels.map(function(label, index) { return { label:label, value:values[index] }; });
+    }
+    function reportTitle(type) { return { sales:'Ventas por cliente', result:'Ingresos y gastos', vat:'IVA e impuestos', pending:'Facturas pendientes' }[type] || 'Informe'; }
+    function reportContent(type) {
+      if (type === 'sales') {
+        var byClient = {};
+        state.invoices.forEach(function(invoice) { byClient[invoice.client] = (byClient[invoice.client] || 0) + Number(invoice.total || 0); });
+        var salesRows = Object.keys(byClient).sort(function(a,b) { return byClient[b] - byClient[a]; }).map(function(client) { return '<tr><td>' + esc(client) + '</td><td class="num">' + euro(byClient[client]) + '</td><td class="num">' + state.invoices.filter(function(i) { return i.client === client; }).length + '</td></tr>'; }).join('');
+        return '<p class="mini-info">Clientes ordenados por el total de sus facturas.</p><div class="table-wrap"><table><thead><tr><th>Cliente</th><th class="amount">Total facturado</th><th class="amount">Facturas</th></tr></thead><tbody>' + (salesRows || '<tr><td colspan="3">No hay datos todavía.</td></tr>') + '</tbody></table></div>';
+      }
+      if (type === 'result') {
+        var income = state.invoices.reduce(function(sum, invoice) { return sum + Number(invoice.total || 0); }, 0);
+        var expenseTotal = state.expenses.reduce(function(sum, expense) { return sum + Number(expense.total || 0); }, 0);
+        var benefit = income - expenseTotal;
+        var margin = income ? benefit / income * 100 : 0;
+        return '<div class="cards" style="grid-template-columns:repeat(3,1fr);margin:0 0 14px"><div class="mini-info"><strong>Ingresos</strong><br>' + euro(income) + '</div><div class="mini-info"><strong>Gastos</strong><br>' + euro(expenseTotal) + '</div><div class="mini-info"><strong>Beneficio</strong><br>' + euro(benefit) + ' (' + margin.toFixed(1).replace('.',',') + '%)</div></div><div class="table-wrap"><table><thead><tr><th>Concepto</th><th class="amount">Importe</th></tr></thead><tbody><tr><td>Facturas</td><td class="amount">' + euro(income) + '</td></tr><tr><td>Gastos registrados</td><td class="amount">' + euro(expenseTotal) + '</td></tr><tr><td><strong>Resultado</strong></td><td class="amount"><strong>' + euro(benefit) + '</strong></td></tr></tbody></table></div>';
+      }
+      if (type === 'vat') {
+        var byVat = {};
+        state.invoices.forEach(function(invoice) { getInvoiceLines(invoice).forEach(function(line) { var rate = Number(line.iva) || 0; if (!byVat[rate]) byVat[rate] = { base:0, tax:0 }; byVat[rate].base += Number(line.base || 0); byVat[rate].tax += Number(line.base || 0) * rate / 100; }); });
+        var vatRows = Object.keys(byVat).sort(function(a,b) { return Number(b) - Number(a); }).map(function(rate) { return '<tr><td>' + vatLabel(rate) + '</td><td class="num">' + euro(byVat[rate].base) + '</td><td class="num">' + euro(byVat[rate].tax) + '</td></tr>'; }).join('');
+        return '<p class="mini-info">Desglose de bases imponibles y cuotas de IVA según las líneas de tus facturas.</p><div class="table-wrap"><table><thead><tr><th>Tipo</th><th class="amount">Base imponible</th><th class="amount">Cuota IVA</th></tr></thead><tbody>' + (vatRows || '<tr><td colspan="3">No hay datos todavía.</td></tr>') + '</tbody></table></div>';
+      }
+      var pending = state.invoices.filter(function(invoice) { return invoice.status !== 'Pagada'; });
+      var pendingRows = pending.map(function(invoice) { return '<tr><td>' + esc(invoice.id) + '</td><td>' + esc(invoice.client) + '</td><td>' + esc(invoice.status) + '</td><td class="num">' + euro(invoice.total) + '</td></tr>'; }).join('');
+      return '<p class="mini-info">Facturas que todavía no están marcadas como pagadas.</p><div class="table-wrap"><table><thead><tr><th>Factura</th><th>Cliente</th><th>Estado</th><th class="amount">Importe</th></tr></thead><tbody>' + (pendingRows || '<tr><td colspan="4">No hay facturas pendientes.</td></tr>') + '</tbody></table></div>';
+    }
+    function openReport(type) {
+      openModal(reportTitle(type), '<form class="form">' + reportContent(type) + '<div class="form-actions"><button type="button" class="ghost" data-action="close-modal">Cerrar</button><button type="button" class="secondary" data-action="print-report" data-report="' + type + '">Descargar PDF</button></div></form>', function() { closeModal(); });
+    }
+    function printReport(type) {
+      openPrintDocument(reportTitle(type) + ' - ' + (state.settings.companyName || 'Ruiz y Rivas Consultores'), '<section class="invoice-paper"><div class="print-head"><div><h1>' + esc(state.settings.companyName || 'Ruiz y Rivas Consultores') + '</h1><span>' + esc(state.settings.taxId || '') + '</span></div><div class="print-title"><strong>INFORME</strong><span>' + esc(reportTitle(type)) + '</span></div></div>' + reportContent(type) + '</section>');
+    }
+    function printReportSummary() {
+      openPrintDocument('Informe general - ' + (state.settings.companyName || 'Ruiz y Rivas Consultores'), '<section class="invoice-paper"><div class="print-head"><div><h1>' + esc(state.settings.companyName || 'Ruiz y Rivas Consultores') + '</h1><span>Resumen de actividad</span></div><div class="print-title"><strong>INFORME</strong><span>Resumen general</span></div></div>' + reportContent('result') + reportContent('pending') + '</section>');
+    }
     function renderReports() {
       setPageMeta('Informes', 'Entiende cómo va tu negocio');
-      $('workspace').innerHTML = '<div class="view-title"><div><h2>Informes</h2><p>Una visión sencilla de ventas, gastos y beneficio.</p></div><button class="secondary" data-action="print">Exportar informe</button></div>' +
-        '<div class="grid-2"><div class="card"><div class="card-head"><h3>Ingresos por mes</h3><span style="font-size:12px;color:#667085">2026</span></div><div class="chart"><div class="bar-wrap"><div class="bar" style="height:35%"></div><div class="bar-label">Ene</div></div><div class="bar-wrap"><div class="bar" style="height:46%"></div><div class="bar-label">Feb</div></div><div class="bar-wrap"><div class="bar" style="height:58%"></div><div class="bar-label">Mar</div></div><div class="bar-wrap"><div class="bar" style="height:44%"></div><div class="bar-label">Abr</div></div><div class="bar-wrap"><div class="bar" style="height:72%"></div><div class="bar-label">May</div></div><div class="bar-wrap"><div class="bar" style="height:86%"></div><div class="bar-label">Jun</div></div><div class="bar-wrap"><div class="bar" style="height:64%"></div><div class="bar-label">Jul</div></div><div class="bar-wrap"><div class="bar" style="height:93%"></div><div class="bar-label">Ago</div></div></div></div>' +
-        '<div class="card"><div class="card-head"><h3>Informes disponibles</h3></div><div class="setting-line"><div><strong>Ventas por cliente</strong><span>Quién te compra más</span></div><button class="ghost">Ver</button></div><div class="setting-line"><div><strong>Ingresos y gastos</strong><span>Resultado del negocio</span></div><button class="ghost">Ver</button></div><div class="setting-line"><div><strong>IVA e impuestos</strong><span>Datos para revisar con tu asesor</span></div><button class="ghost">Ver</button></div><div class="setting-line"><div><strong>Facturas pendientes</strong><span>Antigüedad de deuda</span></div><button class="ghost">Ver</button></div></div></div>' +
-        '<div class="card" style="margin-top:18px"><div class="card-head"><h3>Resumen financiero</h3><span class="status paid">Estimación</span></div><div class="cards" style="margin:0"><div><div class="label" style="color:#667085;font-size:12px">Ingresos</div><div class="number" style="font-size:22px;margin-top:5px">' + euro(4850) + '</div></div><div><div class="label" style="color:#667085;font-size:12px">Gastos</div><div class="number" style="font-size:22px;margin-top:5px">' + euro(781.30) + '</div></div><div><div class="label" style="color:#667085;font-size:12px">Beneficio</div><div class="number" style="font-size:22px;margin-top:5px;color:#16803c">' + euro(4068.70) + '</div></div><div><div class="label" style="color:#667085;font-size:12px">Margen</div><div class="number" style="font-size:22px;margin-top:5px;color:#16803c">83,9%</div></div></div></div>';
+      var months = monthlySales();
+      var maxMonth = Math.max.apply(null, months.map(function(month) { return month.value; })) || 1;
+      var chart = months.map(function(month) { var height = month.value ? Math.max(10, Math.round(month.value / maxMonth * 92)) : 6; return '<div class="bar-wrap" title="' + esc(month.label + ': ' + euro(month.value)) + '"><div class="bar" style="height:' + height + '%"></div><div class="bar-label">' + month.label + '</div></div>'; }).join('');
+      var income = state.invoices.reduce(function(sum, invoice) { return sum + Number(invoice.total || 0); }, 0);
+      var expenseTotal = state.expenses.reduce(function(sum, expense) { return sum + Number(expense.total || 0); }, 0);
+      var benefit = income - expenseTotal;
+      var margin = income ? benefit / income * 100 : 0;
+      $('workspace').innerHTML = '<div class="view-title"><div><h2>Informes</h2><p>Una visión sencilla de ventas, gastos y beneficio.</p></div><button class="secondary" data-action="print-report-summary">Exportar informe</button></div>' +
+        '<div class="grid-2"><div class="card"><div class="card-head"><h3>Ingresos por mes</h3><span style="font-size:12px;color:#667085">2026</span></div><div class="chart">' + chart + '</div></div>' +
+        '<div class="card"><div class="card-head"><h3>Informes disponibles</h3></div><div class="setting-line"><div><strong>Ventas por cliente</strong><span>Quién te compra más</span></div><button class="ghost" data-action="report-detail" data-report="sales">Ver</button></div><div class="setting-line"><div><strong>Ingresos y gastos</strong><span>Resultado del negocio</span></div><button class="ghost" data-action="report-detail" data-report="result">Ver</button></div><div class="setting-line"><div><strong>IVA e impuestos</strong><span>Datos para revisar con tu asesor</span></div><button class="ghost" data-action="report-detail" data-report="vat">Ver</button></div><div class="setting-line"><div><strong>Facturas pendientes</strong><span>Antigüedad de deuda</span></div><button class="ghost" data-action="report-detail" data-report="pending">Ver</button></div></div></div>' +
+        '<div class="card" style="margin-top:18px"><div class="card-head"><h3>Resumen financiero</h3><span class="status paid">Calculado con tus datos</span></div><div class="cards" style="margin:0"><div><div class="label" style="color:#667085;font-size:12px">Ingresos</div><div class="number" style="font-size:22px;margin-top:5px">' + euro(income) + '</div></div><div><div class="label" style="color:#667085;font-size:12px">Gastos</div><div class="number" style="font-size:22px;margin-top:5px">' + euro(expenseTotal) + '</div></div><div><div class="label" style="color:#667085;font-size:12px">Beneficio</div><div class="number" style="font-size:22px;margin-top:5px;color:#16803c">' + euro(benefit) + '</div></div><div><div class="label" style="color:#667085;font-size:12px">Margen</div><div class="number" style="font-size:22px;margin-top:5px;color:#16803c">' + margin.toFixed(1).replace('.',',') + '%</div></div></div></div>';
     }
 
+    function saveSettingsFromForm() {
+      var form = $('settingsForm');
+      if (!form) return;
+      state.settings.companyName = form.elements.companyName.value.trim() || 'Ruiz y Rivas Consultores';
+      state.settings.taxId = form.elements.taxId.value.trim();
+      state.settings.address = form.elements.address.value.trim();
+      state.settings.email = form.elements.email.value.trim();
+      saveState();
+      toast('Datos de empresa guardados');
+      render();
+    }
+    function editDefaultVat() {
+      openModal('IVA por defecto', '<form class="form"><label>Tipo de IVA para nuevas líneas</label><select name="vat">' + vatOptions(state.settings.defaultVat) + '</select><div class="form-actions"><button type="button" class="ghost" data-action="close-modal">Cancelar</button><button class="primary">Guardar IVA</button></div></form>', function(data) { state.settings.defaultVat = Number(data.get('vat')); saveState(); closeModal(); toast('IVA por defecto actualizado'); render(); });
+    }
+    function customizeTemplate() {
+      openModal('Plantilla de factura', '<form class="form"><label>Diseño de los documentos</label><select name="template"><option' + (state.settings.template === 'Moderna azul' ? ' selected' : '') + '>Moderna azul</option><option' + (state.settings.template === 'Clásica' ? ' selected' : '') + '>Clásica</option><option' + (state.settings.template === 'Minimalista' ? ' selected' : '') + '>Minimalista</option></select><div class="mini-info">La plantilla elegida se guardará para tus próximos documentos PDF.</div><div class="form-actions"><button type="button" class="ghost" data-action="close-modal">Cancelar</button><button class="primary">Guardar plantilla</button></div></form>', function(data) { state.settings.template = data.get('template'); saveState(); closeModal(); toast('Plantilla guardada'); render(); });
+    }
+    function showVerifactu() {
+      openModal('Verifactu', '<form class="form"><div class="mini-info"><strong>Preparado para facturación electrónica</strong><br>Esta demo deja preparado el espacio para numeración, datos fiscales y documentos. La conexión real con un servicio de facturación requiere una cuenta y configuración adicional.</div><div class="form-actions"><button type="button" class="primary" data-action="close-modal">Entendido</button></div></form>', function() { closeModal(); });
+    }
+    function openSettingsFeature(key) {
+      var info = { bancos:['Bancos','Aquí podrás conectar cuentas y conciliar movimientos.'], inventario:['Inventario','Aquí podrás controlar stock, almacenes y pedidos.'], equipo:['Equipo','Aquí podrás crear usuarios y configurar permisos.'], electronica:['Factura electrónica','Aquí podrás preparar el envío electrónico de facturas.'], importar:['Importar datos','Puedes preparar una importación de clientes, productos o facturas.'], integraciones:['Integraciones','Aquí podrás conectar tu tienda, banco o aplicaciones.'] }[key] || ['Opción','Esta opción está preparada para ampliarse.'];
+      openModal(info[0], '<form class="form"><div class="mini-info">' + info[1] + '</div><div class="form-actions"><button type="button" class="primary" data-action="close-modal">Cerrar</button></div></form>', function() { closeModal(); });
+    }
+    function deleteAccount(id) {
+      var account = state.accounts.find(function(a) { return String(a.id) === String(id); });
+      if (!account) return;
+      openModal('Borrar cuenta bancaria', '<form class="form"><p style="margin:4px 0 0;color:#475467;line-height:1.5">¿Seguro que quieres borrar <strong>' + esc(account.name) + '</strong>? Las facturas ya creadas conservarán sus datos.</p><div class="form-actions"><button type="button" class="ghost" data-action="close-modal">Cancelar</button><button class="danger">Borrar cuenta</button></div></form>', function() { state.accounts = state.accounts.filter(function(a) { return String(a.id) !== String(id); }); closeModal(); toast('Cuenta borrada'); render(); });
+    }
     function renderSettings() {
       setPageMeta('Configuración', 'Personaliza tu empresa y tus documentos');
-      $('workspace').innerHTML = '<div class="view-title"><div><h2>Configuración</h2><p>Datos de empresa, numeración, impuestos y apariencia.</p></div><button class="primary" data-action="save-settings">Guardar cambios</button></div>' +
-        '<div class="two-columns"><div class="card form"><h3 style="margin:0 0 4px;font-size:16px">Datos de la empresa</h3><p style="margin:0;color:#667085;font-size:12px">Aparecerán en tus facturas.</p><label>Nombre comercial</label><input value="Ruiz y Rivas Consultores"><label>NIF/CIF</label><input value="B12345678"><label>Dirección</label><input value="Calle Mayor 1, Madrid"><label>Correo</label><input value="info@ruizyrivas.es"></div>' +
-        '<div class="card"><h3 style="margin:0 0 4px;font-size:16px">Opciones de facturación</h3><div class="setting-line"><div><strong>Numeración automática</strong><span>F-2026-001, F-2026-002...</span></div><div class="switch"></div></div><div class="setting-line"><div><strong>IVA por defecto: 21%</strong><span>Se aplicará a nuevas facturas</span></div><button class="ghost">Cambiar</button></div><div class="setting-line"><div><strong>Verifactu</strong><span>Preparado para facturación electrónica</span></div><span class="status paid">Activo</span></div><div class="setting-line"><div><strong>Recordatorios de pago</strong><span>Enviar avisos automáticos</span></div><div class="switch"></div></div><div class="setting-line"><div><strong>Plantilla de factura</strong><span>Moderna azul</span></div><button class="ghost">Personalizar</button></div></div></div>' +
-        '<div class="card" style="margin-top:18px"><div class="card-head"><div><h3 style="margin:0">Cuentas bancarias</h3><span style="color:#667085;font-size:12px">Se podrán elegir al crear una factura</span></div><button class="secondary" data-action="new-account">+ Añadir cuenta</button></div><div>' + state.accounts.map(function(a) { return '<div class="setting-line"><div><strong>' + esc(a.name) + '</strong><span>' + esc(a.iban) + '</span></div><div style="display:flex;align-items:center;gap:8px"><span class="status paid">Disponible</span><button class="ghost" data-action="edit-account" data-id="' + a.id + '">Editar</button></div></div>'; }).join('') + '</div></div>' +
-        '<div class="card" style="margin-top:18px"><div class="card-head"><h3>Más opciones que tendría una versión completa</h3></div><div class="feature-grid">' + feature('🏦','Bancos','Conectar cuentas y conciliar movimientos.') + feature('📦','Inventario','Stock, almacenes y pedidos.') + feature('♙','Equipo','Usuarios, permisos y asesoría.') + feature('▤','Factura electrónica','Envío a organismos y clientes.') + feature('↻','Importar datos','Clientes, productos y facturas desde Excel.') + feature('⚙','Integraciones','Conectar tienda, banco o aplicaciones.') + '</div></div>';
+      var s = state.settings;
+      var accountsHtml = state.accounts.length ? state.accounts.map(function(a) { return '<div class="setting-line"><div><strong>' + esc(a.name) + '</strong><span>' + esc(a.iban) + '</span></div><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end"><span class="status paid">Disponible</span><button class="ghost" data-action="edit-account" data-id="' + a.id + '">Editar</button><button class="danger" data-action="delete-account" data-id="' + a.id + '">Borrar</button></div></div>'; }).join('') : '<div class="empty">No hay cuentas bancarias configuradas.</div>';
+      $('workspace').innerHTML = '<div class="view-title"><div><h2>Configuración</h2><p>Personaliza tu empresa y tus documentos.</p></div><button class="primary" data-action="save-settings">Guardar cambios</button></div>' +
+        '<div class="two-columns"><form id="settingsForm" class="card form"><h3 style="margin:0 0 4px;font-size:16px">Datos de la empresa</h3><p style="margin:0;color:#667085;font-size:12px">Aparecerán en tus facturas y documentos PDF.</p><label>Nombre comercial</label><input name="companyName" value="' + esc(s.companyName) + '" required><label>NIF/CIF</label><input name="taxId" value="' + esc(s.taxId) + '"><label>Dirección</label><input name="address" value="' + esc(s.address) + '"><label>Correo</label><input name="email" type="email" value="' + esc(s.email) + '"><div class="form-actions"><button class="secondary">Guardar datos de empresa</button></div></form>' +
+        '<div class="card"><h3 style="margin:0 0 4px;font-size:16px">Opciones de facturación</h3><div class="setting-line"><div><strong>Numeración automática</strong><span>F-2026-001, F-2026-002...</span></div>' + settingSwitch('autoNumbering') + '</div><div class="setting-line"><div><strong>IVA por defecto: ' + vatLabel(s.defaultVat) + '</strong><span>Se aplicará a nuevas facturas</span></div><button class="ghost" data-action="edit-default-vat">Cambiar</button></div><div class="setting-line"><div><strong>Verifactu</strong><span>Preparado para facturación electrónica</span></div><button class="ghost" data-action="show-verifactu">Ver detalles</button></div><div class="setting-line"><div><strong>Recordatorios de pago</strong><span>Activar avisos de facturas pendientes</span></div>' + settingSwitch('reminders') + '</div><div class="setting-line"><div><strong>Plantilla de factura</strong><span>' + esc(s.template) + '</span></div><button class="ghost" data-action="customize-template">Personalizar</button></div></div></div>' +
+        '<div class="card" style="margin-top:18px"><div class="card-head"><div><h3 style="margin:0">Cuentas bancarias</h3><span style="color:#667085;font-size:12px">Se podrán elegir al crear una factura.</span></div><button class="secondary" data-action="new-account">+ Añadir cuenta</button></div><div>' + accountsHtml + '</div></div>' +
+        '<div class="card" style="margin-top:18px"><div class="card-head"><h3>Más opciones</h3><span style="color:#667085;font-size:12px">Pulsa cualquier opción para ver para qué sirve.</span></div><div class="feature-grid">' + settingFeature('🏦','Bancos','Conectar cuentas y conciliar movimientos.','bancos') + settingFeature('📦','Inventario','Stock, almacenes y pedidos.','inventario') + settingFeature('♙','Equipo','Usuarios, permisos y asesoría.','equipo') + settingFeature('▤','Factura electrónica','Envío a organismos y clientes.','electronica') + settingFeature('↻','Importar datos','Clientes, productos y facturas desde Excel.','importar') + settingFeature('⚙','Integraciones','Conectar tienda, banco o aplicaciones.','integraciones') + '</div></div>';
+      $('settingsForm').addEventListener('submit', function(e) { e.preventDefault(); saveSettingsFromForm(); });
     }
 
     function openModal(title, body, onSubmit) {
@@ -625,6 +721,7 @@
       if (a === 'new-expense') newExpense();
       if (a === 'new-account') newAccount();
       if (a === 'edit-account') editAccount(action.dataset.id);
+      if (a === 'delete-account') deleteAccount(action.dataset.id);
       if (a === 'edit-invoice') editInvoice(action.dataset.id);
       if (a === 'delete-invoice') deleteInvoice(action.dataset.id);
       if (a === 'edit-client') editClient(action.dataset.id);
@@ -644,6 +741,14 @@
       if (a === 'print-expense') printExpense(action.dataset.id);
       if (a === 'print-all-expenses') printAllExpenses();
       if (a === 'print-all-payments') printAllPayments();
+      if (a === 'report-detail') openReport(action.dataset.report);
+      if (a === 'print-report') { closeModal(); printReport(action.dataset.report); }
+      if (a === 'print-report-summary') printReportSummary();
+      if (a === 'toggle-setting') { state.settings[action.dataset.setting] = !state.settings[action.dataset.setting]; saveState(); render(); toast('Opción actualizada'); }
+      if (a === 'edit-default-vat') editDefaultVat();
+      if (a === 'customize-template') customizeTemplate();
+      if (a === 'show-verifactu') showVerifactu();
+      if (a === 'settings-feature') openSettingsFeature(action.dataset.feature);
       if (a === 'add-invoice-line') addInvoiceLine();
       if (a === 'remove-invoice-line') removeInvoiceLine(action);
       if (a === 'print-invoice') printInvoice(action.dataset.id);
@@ -652,7 +757,7 @@
       if (a === 'print') window.print();
       if (a === 'import') toast('Aquí podrías importar clientes, productos y facturas desde Excel o CSV.');
       if (a === 'reminders') toast('Recordatorios preparados para las facturas pendientes.');
-      if (a === 'save-settings') { saveState(); toast('Cambios guardados'); }
+      if (a === 'save-settings') saveSettingsFromForm();
       if (a === 'client-detail') toast('Ficha del cliente: facturas, presupuestos, cobros y notas.');
       if (a === 'convert-quote') { var q = state.quotes.find(function(x) { return x.id === action.dataset.id; }); if (q) { state.invoices.unshift({ id:'F-2026-' + String(state.invoices.length + 5).padStart(3,'0'), client:q.client, date:today(), status:'Borrador', total:q.total }); q.status = 'Aceptado'; toast('Presupuesto convertido en factura'); render(); } }
       if (a === 'mark-paid') { var i = state.invoices.find(function(x) { return x.id === action.dataset.id; }); if (i) { i.status = 'Pagada'; toast('Factura marcada como cobrada'); render(); } }
