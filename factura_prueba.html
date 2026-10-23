@@ -316,17 +316,24 @@
     function renderQuotes() {
       setPageMeta('Presupuestos', 'Prepara propuestas y conviértelas en facturas');
       $('workspace').innerHTML = '<div class="view-title"><div><h2>Presupuestos</h2><p>Del presupuesto al cobro, sin volver a escribir los datos.</p></div><button class="primary" data-action="new-quote">+ Nuevo presupuesto</button></div>' +
-        '<div class="card list-card"><table><thead><tr><th>Número</th><th>Cliente</th><th>Fecha</th><th>Estado</th><th class="amount">Total</th><th></th></tr></thead><tbody>' +
-        state.quotes.map(function(q) { return '<tr><td><strong>' + q.id + '</strong></td><td>' + esc(q.client) + '</td><td>' + q.date + '</td><td>' + statusBadge(q.status) + '</td><td class="amount">' + euro(q.total) + '</td><td><button class="secondary" data-action="convert-quote" data-id="' + q.id + '">Convertir en factura</button></td></tr>'; }).join('') + '</tbody></table></div>' +
+        '<div class="toolbar"><button class="secondary" data-action="print-all-quotes">Descargar presupuestos en PDF</button></div>' +
+        '<div class="card list-card">' + quoteTable(state.quotes) + '</div>' +
         '<div class="two-columns" style="margin-top:18px"><div class="card"><h3 style="margin:0 0 12px;font-size:16px">Flujo de venta</h3><div class="progress-row"><div class="progress-label"><span>1. Presupuesto</span><span>Enviado</span></div><div class="progress"><i style="width:100%"></i></div></div><div class="progress-row"><div class="progress-label"><span>2. Aceptación</span><span>Online</span></div><div class="progress"><i style="width:72%"></i></div></div><div class="progress-row"><div class="progress-label"><span>3. Factura</span><span>Un clic</span></div><div class="progress"><i style="width:48%"></i></div></div><div class="progress-row"><div class="progress-label"><span>4. Cobro</span><span>Seguimiento</span></div><div class="progress"><i style="width:35%"></i></div></div></div><div class="card"><h3 style="margin:0 0 12px;font-size:16px">Documentos disponibles</h3><div class="feature-grid" style="grid-template-columns:1fr 1fr">' + feature('▤','Proforma','Para anticipar una venta.') + feature('▥','Albarán','Para entregar productos.') + feature('↻','Recurrente','Para cuotas periódicas.') + feature('✉','Envío email','Comparte el documento.') + '</div></div></div>';
     }
 
     function renderClients() {
       setPageMeta('Clientes', 'Contactos, datos fiscales y seguimiento');
       $('workspace').innerHTML = '<div class="view-title"><div><h2>Clientes</h2><p>Ten todos tus contactos ordenados en un solo lugar.</p></div><button class="primary" data-action="new-client">+ Nuevo cliente</button></div>' +
-        '<div class="toolbar"><input id="clientSearch" placeholder="Buscar cliente..."><button class="ghost" data-action="import">Importar datos</button></div><div class="card list-card"><table><thead><tr><th>Cliente</th><th>Correo</th><th>NIF/CIF</th><th>Facturas</th><th></th></tr></thead><tbody>' +
-        state.clients.map(function(c) { var count = state.invoices.filter(function(i) { return i.client === c.name; }).length; return '<tr><td><strong>' + esc(c.name) + '</strong></td><td>' + esc(c.detail) + '</td><td>' + esc(c.tax) + '</td><td>' + count + '</td><td><button class="ghost" data-action="client-detail" data-id="' + c.id + '">Ver ficha</button></td></tr>'; }).join('') + '</tbody></table></div>';
-      $('clientSearch').addEventListener('input', function() { var q = this.value.toLowerCase(); document.querySelector('.list-card tbody').innerHTML = state.clients.filter(function(c) { return (c.name + c.detail).toLowerCase().indexOf(q) >= 0; }).map(function(c) { return '<tr><td><strong>' + esc(c.name) + '</strong></td><td>' + esc(c.detail) + '</td><td>' + esc(c.tax) + '</td><td>' + state.invoices.filter(function(i) { return i.client === c.name; }).length + '</td><td><button class="ghost">Ver ficha</button></td></tr>'; }).join(''); });
+        '<div class="toolbar"><input id="clientSearch" placeholder="Buscar cliente..."><button class="ghost" data-action="import">Importar datos</button><button class="secondary" data-action="print-all-clients">Descargar clientes en PDF</button></div><div class="card list-card">' + clientTable(state.clients) + '</div>';
+      $('clientSearch').addEventListener('input', function() { var q = this.value.toLowerCase(); document.querySelector('.list-card').innerHTML = clientTable(state.clients.filter(function(c) { return (c.name + ' ' + c.detail + ' ' + c.tax).toLowerCase().indexOf(q) >= 0; })); });
+    }
+    function quoteTable(items) {
+      if (!items.length) return '<div class="empty">No hay presupuestos.</div>';
+      return '<table><thead><tr><th>Número</th><th>Cliente</th><th>Fecha</th><th>Estado</th><th class="amount">Total</th><th></th></tr></thead><tbody>' + items.map(function(q) { return '<tr><td><strong>' + esc(q.id) + '</strong></td><td>' + esc(q.client) + '</td><td>' + esc(q.date) + '</td><td>' + statusBadge(q.status) + '</td><td class="amount">' + euro(q.total) + '</td><td><div class="row-actions"><button class="secondary" data-action="convert-quote" data-id="' + esc(q.id) + '">Convertir</button><button class="ghost" data-action="edit-quote" data-id="' + esc(q.id) + '">Editar</button><button class="danger" data-action="delete-quote" data-id="' + esc(q.id) + '">Borrar</button><button class="secondary" data-action="print-quote" data-id="' + esc(q.id) + '">PDF</button></div></td></tr>'; }).join('') + '</tbody></table>';
+    }
+    function clientTable(items) {
+      if (!items.length) return '<div class="empty">No hay clientes.</div>';
+      return '<table><thead><tr><th>Cliente</th><th>Correo</th><th>NIF/CIF</th><th>Facturas</th><th></th></tr></thead><tbody>' + items.map(function(c) { var count = state.invoices.filter(function(i) { return i.client === c.name; }).length; return '<tr><td><strong>' + esc(c.name) + '</strong></td><td>' + esc(c.detail) + '</td><td>' + esc(c.tax) + '</td><td>' + count + '</td><td><div class="row-actions"><button class="ghost" data-action="client-detail" data-id="' + c.id + '">Ficha</button><button class="ghost" data-action="edit-client" data-id="' + c.id + '">Editar</button><button class="danger" data-action="delete-client" data-id="' + c.id + '">Borrar</button><button class="secondary" data-action="print-client" data-id="' + c.id + '">PDF</button></div></td></tr>'; }).join('') + '</tbody></table>';
     }
 
     function renderProducts() {
@@ -395,6 +402,16 @@
     function newClient() {
       openModal('Nuevo cliente', '<form class="form"><label>Nombre o empresa</label><input name="name" required placeholder="Ej.: María López"><label>Correo electrónico</label><input name="email" type="email" required placeholder="cliente@ejemplo.com"><label>NIF/CIF</label><input name="tax" placeholder="12345678A"><div class="form-actions"><button type="button" class="ghost" data-action="close-modal">Cancelar</button><button class="primary">Guardar cliente</button></div></form>', function(data) { state.clients.push({ id:Date.now(), name:data.get('name'), detail:data.get('email'), tax:data.get('tax') || 'Pendiente' }); closeModal(); render(); });
     }
+    function editClient(id) {
+      var client = state.clients.find(function(c) { return String(c.id) === String(id); });
+      if (!client) return;
+      openModal('Editar cliente', '<form class="form"><label>Nombre o empresa</label><input name="name" required value="' + esc(client.name) + '"><label>Correo electrónico</label><input name="email" type="email" required value="' + esc(client.detail) + '"><label>NIF/CIF</label><input name="tax" value="' + esc(client.tax) + '"><div class="form-actions"><button type="button" class="ghost" data-action="close-modal">Cancelar</button><button class="primary">Guardar cambios</button></div></form>', function(data) { var oldName = client.name; client.name = data.get('name'); client.detail = data.get('email'); client.tax = data.get('tax') || 'Pendiente'; state.invoices.forEach(function(invoice) { if (invoice.client === oldName) invoice.client = client.name; }); state.quotes.forEach(function(quote) { if (quote.client === oldName) quote.client = client.name; }); closeModal(); toast('Cliente modificado'); render(); });
+    }
+    function deleteClient(id) {
+      var client = state.clients.find(function(c) { return String(c.id) === String(id); });
+      if (!client) return;
+      openModal('Borrar cliente', '<form class="form"><p style="margin:4px 0 0;color:#475467;line-height:1.5">¿Seguro que quieres borrar a <strong>' + esc(client.name) + '</strong>? Sus facturas y presupuestos se conservarán.</p><div class="form-actions"><button type="button" class="ghost" data-action="close-modal">Cancelar</button><button class="danger">Borrar cliente</button></div></form>', function() { state.clients = state.clients.filter(function(c) { return String(c.id) !== String(id); }); closeModal(); toast('Cliente borrado'); render(); });
+    }
     function newProduct() {
       openModal('Nuevo producto o servicio', '<form class="form"><label>Nombre</label><input name="name" required placeholder="Ej.: Asesoría mensual"><div class="form-grid"><div><label>Código</label><input name="code" placeholder="ASE-001"></div><div><label>Precio sin IVA (€)</label><input name="price" required type="number" step="0.01" placeholder="0,00"></div></div><div class="form-actions"><button type="button" class="ghost" data-action="close-modal">Cancelar</button><button class="primary">Guardar producto</button></div></form>', function(data) { state.products.push({ id:Date.now(), name:data.get('name'), code:data.get('code') || 'SIN-CÓDIGO', price:Number(data.get('price')) || 0 }); closeModal(); render(); });
     }
@@ -403,7 +420,18 @@
     }
     function newQuote() {
       var clientOptions = state.clients.map(function(c) { return '<option>' + esc(c.name) + '</option>'; }).join('');
-      openModal('Nuevo presupuesto', '<form class="form"><label>Cliente</label><select name="client">' + clientOptions + '</select><div class="form-grid"><div><label>Descripción</label><input name="description" required placeholder="Ej.: Consultoría inicial"></div><div><label>Total (€)</label><input name="total" required type="number" step="0.01"></div></div><label>Válido hasta</label><input name="date" value="31/12/2026"><div class="form-actions"><button type="button" class="ghost" data-action="close-modal">Cancelar</button><button class="primary">Guardar presupuesto</button></div></form>', function(data) { var num = 'P-2026-' + String(state.quotes.length + 7).padStart(3,'0'); state.quotes.unshift({ id:num, client:data.get('client'), date:today(), status:'Pendiente', total:Number(data.get('total')) || 0, description:data.get('description') }); closeModal(); state.view = 'presupuestos'; toast('Presupuesto guardado'); render(); });
+      openModal('Nuevo presupuesto', '<form class="form"><div class="form-grid"><div><label>Cliente</label><select name="client">' + clientOptions + '</select></div><div><label>Válido hasta</label><input name="date" value="31/12/2026"></div></div><label>Descripción</label><textarea name="description" required placeholder="Ej.: Consultoría inicial"></textarea><div class="form-grid"><div><label>Total (€)</label><input name="total" required type="number" step="0.01"></div><div><label>Estado</label><select name="status"><option>Pendiente</option><option>Aceptado</option><option>Rechazado</option><option>Borrador</option></select></div></div><label>Notas</label><textarea name="notes" placeholder="Condiciones del presupuesto..."></textarea><div class="form-actions"><button type="button" class="ghost" data-action="close-modal">Cancelar</button><button class="primary">Guardar presupuesto</button></div></form>', function(data) { var num = 'P-2026-' + String(state.quotes.length + 7).padStart(3,'0'); state.quotes.unshift({ id:num, client:data.get('client'), date:data.get('date'), status:data.get('status'), total:Number(data.get('total')) || 0, description:data.get('description'), notes:data.get('notes') || '' }); closeModal(); state.view = 'presupuestos'; toast('Presupuesto guardado'); render(); });
+    }
+    function editQuote(id) {
+      var quote = state.quotes.find(function(q) { return String(q.id) === String(id); });
+      if (!quote) return;
+      var clientOptions = state.clients.map(function(c) { return '<option value="' + esc(c.name) + '"' + (c.name === quote.client ? ' selected' : '') + '>' + esc(c.name) + '</option>'; }).join('');
+      openModal('Editar presupuesto', '<form class="form"><div class="form-grid"><div><label>Número</label><input name="number" value="' + esc(quote.id) + '"></div><div><label>Válido hasta</label><input name="date" value="' + esc(quote.date) + '"></div></div><label>Cliente</label><select name="client">' + clientOptions + '</select><label>Descripción</label><textarea name="description" required>' + esc(quote.description || '') + '</textarea><div class="form-grid"><div><label>Total (€)</label><input name="total" required type="number" step="0.01" value="' + Number(quote.total || 0).toFixed(2) + '"></div><div><label>Estado</label><select name="status"><option' + (quote.status === 'Pendiente' ? ' selected' : '') + '>Pendiente</option><option' + (quote.status === 'Aceptado' ? ' selected' : '') + '>Aceptado</option><option' + (quote.status === 'Rechazado' ? ' selected' : '') + '>Rechazado</option><option' + (quote.status === 'Borrador' ? ' selected' : '') + '>Borrador</option></select></div></div><label>Notas</label><textarea name="notes" placeholder="Condiciones del presupuesto...">' + esc(quote.notes || '') + '</textarea><div class="form-actions"><button type="button" class="ghost" data-action="close-modal">Cancelar</button><button class="primary">Guardar cambios</button></div></form>', function(data) { quote.id = data.get('number') || quote.id; quote.client = data.get('client'); quote.date = data.get('date'); quote.description = data.get('description'); quote.total = Number(data.get('total')) || 0; quote.status = data.get('status'); quote.notes = data.get('notes') || ''; closeModal(); toast('Presupuesto modificado'); render(); });
+    }
+    function deleteQuote(id) {
+      var quote = state.quotes.find(function(q) { return String(q.id) === String(id); });
+      if (!quote) return;
+      openModal('Borrar presupuesto', '<form class="form"><p style="margin:4px 0 0;color:#475467;line-height:1.5">¿Seguro que quieres borrar el presupuesto <strong>' + esc(quote.id) + '</strong>? Esta acción no se puede deshacer.</p><div class="form-actions"><button type="button" class="ghost" data-action="close-modal">Cancelar</button><button class="danger">Borrar presupuesto</button></div></form>', function() { state.quotes = state.quotes.filter(function(q) { return String(q.id) !== String(id); }); closeModal(); toast('Presupuesto borrado'); render(); });
     }
     function newAccount() {
       openModal('Añadir cuenta bancaria', '<form class="form"><label>Nombre de la cuenta</label><input name="name" required placeholder="Ej.: Cuenta BBVA principal"><label>IBAN o número de cuenta</label><input name="iban" required placeholder="ES00 0000 0000 0000 0000 0000"><div class="mini-info">Esta cuenta se podrá elegir después en Nueva factura cuando selecciones Recibo o Transferencia.</div><div class="form-actions"><button type="button" class="ghost" data-action="close-modal">Cancelar</button><button class="primary">Guardar cuenta</button></div></form>', function(data) { state.accounts.push({ id:Date.now(), name:data.get('name'), iban:data.get('iban') }); closeModal(); state.view = 'configuracion'; toast('Cuenta bancaria guardada'); render(); });
@@ -495,6 +523,31 @@
       if (!state.invoices.length) { toast('No hay facturas para descargar'); return; }
       openPrintDocument('Facturas Ruiz y Rivas Consultores', state.invoices.map(printableInvoiceBlock).join(''));
     }
+    function printableClientBlock(client) {
+      var invoices = state.invoices.filter(function(invoice) { return invoice.client === client.name; });
+      var rows = invoices.length ? invoices.map(function(invoice) { return '<tr><td>' + esc(invoice.id) + '</td><td>' + esc(invoice.date) + '</td><td>' + esc(invoice.status) + '</td><td class="num">' + euro(invoice.total) + '</td></tr>'; }).join('') : '<tr><td colspan="4">No hay facturas asociadas.</td></tr>';
+      return '<section class="invoice-paper"><div class="print-head"><div><img src="' + new URL('logo_ruiz_rivas.png', document.location.href).href + '" alt="Ruiz y Rivas Consultores"><h1>Ruiz y Rivas Consultores</h1></div><div class="print-title"><strong>CLIENTE</strong><span>Ficha</span></div></div><div class="print-meta"><div><strong>Nombre o empresa</strong><span>' + esc(client.name) + '</span></div><div><strong>Correo</strong><span>' + esc(client.detail) + '</span></div><div><strong>NIF/CIF</strong><span>' + esc(client.tax) + '</span></div><div><strong>Facturas</strong><span>' + invoices.length + '</span></div></div><h2 style="font-size:16px;margin:0 0 10px">Historial de facturas</h2><table class="print-lines"><thead><tr><th>Número</th><th>Fecha</th><th>Estado</th><th class="num">Total</th></tr></thead><tbody>' + rows + '</tbody></table></section>';
+    }
+    function printClient(id) {
+      var client = state.clients.find(function(c) { return String(c.id) === String(id); });
+      if (client) openPrintDocument('Cliente ' + client.name, printableClientBlock(client));
+    }
+    function printAllClients() {
+      if (!state.clients.length) { toast('No hay clientes para descargar'); return; }
+      openPrintDocument('Clientes Ruiz y Rivas Consultores', state.clients.map(printableClientBlock).join(''));
+    }
+    function printableQuoteBlock(quote) {
+      var client = state.clients.find(function(c) { return c.name === quote.client; });
+      return '<section class="invoice-paper"><div class="print-head"><div><img src="' + new URL('logo_ruiz_rivas.png', document.location.href).href + '" alt="Ruiz y Rivas Consultores"><h1>Ruiz y Rivas Consultores</h1></div><div class="print-title"><strong>PRESUPUESTO</strong><span>' + esc(quote.id) + '</span></div></div><div class="print-meta"><div><strong>Cliente</strong><span>' + esc(quote.client) + '</span></div><div><strong>Válido hasta</strong><span>' + esc(quote.date) + '</span></div><div><strong>Estado</strong><span>' + esc(quote.status) + '</span></div><div><strong>Contacto</strong><span>' + esc(client ? client.detail : '—') + '</span></div></div><table class="print-lines"><thead><tr><th>Descripción</th><th class="num">Total</th></tr></thead><tbody><tr><td>' + esc(quote.description || '—') + '</td><td class="num">' + euro(quote.total) + '</td></tr></tbody></table><div class="print-bottom"><div class="print-notes"><strong>Notas</strong><span>' + esc(quote.notes || '—') + '</span></div><div class="print-totals"><div class="grand"><span>Total presupuesto</span><strong>' + euro(quote.total) + '</strong></div></div></div></section>';
+    }
+    function printQuote(id) {
+      var quote = state.quotes.find(function(q) { return String(q.id) === String(id); });
+      if (quote) openPrintDocument('Presupuesto ' + quote.id, printableQuoteBlock(quote));
+    }
+    function printAllQuotes() {
+      if (!state.quotes.length) { toast('No hay presupuestos para descargar'); return; }
+      openPrintDocument('Presupuestos Ruiz y Rivas Consultores', state.quotes.map(printableQuoteBlock).join(''));
+    }
 
     document.addEventListener('click', function(e) {
       var view = e.target.closest('[data-view]');
@@ -512,6 +565,14 @@
       if (a === 'edit-account') editAccount(action.dataset.id);
       if (a === 'edit-invoice') editInvoice(action.dataset.id);
       if (a === 'delete-invoice') deleteInvoice(action.dataset.id);
+      if (a === 'edit-client') editClient(action.dataset.id);
+      if (a === 'delete-client') deleteClient(action.dataset.id);
+      if (a === 'print-client') printClient(action.dataset.id);
+      if (a === 'print-all-clients') printAllClients();
+      if (a === 'edit-quote') editQuote(action.dataset.id);
+      if (a === 'delete-quote') deleteQuote(action.dataset.id);
+      if (a === 'print-quote') printQuote(action.dataset.id);
+      if (a === 'print-all-quotes') printAllQuotes();
       if (a === 'add-invoice-line') addInvoiceLine();
       if (a === 'remove-invoice-line') removeInvoiceLine(action);
       if (a === 'print-invoice') printInvoice(action.dataset.id);
