@@ -28,6 +28,10 @@
     .topbar h1 { margin:0; font-size:22px; }
     .topbar p { margin:4px 0 0; color:var(--muted); font-size:13px; }
     .top-actions { display:flex; gap:9px; align-items:center; }
+    .sync-badge { display:inline-flex; align-items:center; gap:6px; border-radius:20px; padding:7px 10px; background:#f2f4f7; color:#667085; font-size:11px; font-weight:700; white-space:nowrap; }
+    .sync-badge.online { color:var(--green); background:var(--green-bg); }
+    .sync-badge.saving { color:var(--orange); background:var(--orange-bg); }
+    .sync-badge.error { color:var(--red); background:var(--red-bg); }
     .search { width:190px; border:1px solid var(--line); border-radius:9px; padding:9px 11px; color:var(--muted); }
     .primary, .secondary, .ghost { border:0; border-radius:9px; padding:10px 14px; font-weight:700; font-size:13px; }
     .primary { color:white; background:var(--primary); }
@@ -152,7 +156,7 @@
     <section class="content">
       <header class="topbar">
         <div><h1 id="pageTitle">Inicio</h1><p id="pageSubtitle">Resumen de la actividad de tu negocio</p></div>
-        <div class="top-actions"><input id="globalSearch" class="search" placeholder="Buscar..."><button class="primary" data-action="new-invoice">+ Nueva factura</button></div>
+        <div class="top-actions"><span id="syncBadge" class="sync-badge">Preparando sincronización...</span><input id="globalSearch" class="search" placeholder="Buscar..."><button class="primary" data-action="new-invoice">+ Nueva factura</button></div>
       </header>
       <main id="workspace" class="workspace"></main>
     </section>
@@ -268,7 +272,9 @@
     }
     var $ = function(id) { return document.getElementById(id); };
     function saveState() {
-      try { localStorage.setItem(storageKey, JSON.stringify({ clients:state.clients, products:state.products, invoices:state.invoices, quotes:state.quotes, expenses:state.expenses, accounts:state.accounts, settings:state.settings })); } catch (e) {}
+      var snapshot = { clients:state.clients, products:state.products, invoices:state.invoices, quotes:state.quotes, expenses:state.expenses, accounts:state.accounts, settings:state.settings };
+      try { localStorage.setItem(storageKey, JSON.stringify(snapshot)); } catch (e) {}
+      if (!window.suppressSharedSave && typeof window.persistSharedState === 'function') window.persistSharedState(snapshot);
     }
     function toast(message) {
       $('toast').textContent = message;
@@ -775,6 +781,95 @@
     });
     $('modalBackdrop').addEventListener('click', function(e) { if (e.target === $('modalBackdrop')) closeModal(); });
     render();
+  </script>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
+    import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyD0z_EapsDSxwMBWdixJcfut9KO7krE4Rc",
+      authDomain: "control-personal-agricola.firebaseapp.com",
+      projectId: "control-personal-agricola",
+      storageBucket: "control-personal-agricola.firebasestorage.app",
+      messagingSenderId: "569248393084",
+      appId: "1:569248393084:web:d5db7e8366695af45c66f9",
+      measurementId: "G-Z660DMMFNP"
+    };
+
+    const firebaseApp = initializeApp(firebaseConfig);
+    const db = getFirestore(firebaseApp);
+    const sharedDoc = doc(db, "appData", "ruiz_rivas_facturacion");
+    let sharedReady = false;
+    let queuedSnapshot = null;
+    let writeChain = Promise.resolve();
+
+    function setSyncStatus(type, text) {
+      const badge = document.getElementById('syncBadge');
+      if (!badge) return;
+      badge.className = 'sync-badge ' + type;
+      badge.textContent = text;
+    }
+
+    function localSnapshot() {
+      return {
+        clients: window.state.clients,
+        products: window.state.products,
+        invoices: window.state.invoices,
+        quotes: window.state.quotes,
+        expenses: window.state.expenses,
+        accounts: window.state.accounts,
+        settings: window.state.settings
+      };
+    }
+
+    window.persistSharedState = function(snapshot) {
+      queuedSnapshot = snapshot;
+      if (!sharedReady) return;
+      writeChain = writeChain.then(async function() {
+        if (!queuedSnapshot) return;
+        const nextSnapshot = queuedSnapshot;
+        queuedSnapshot = null;
+        setSyncStatus('saving', 'Guardando en la nube...');
+        await setDoc(sharedDoc, nextSnapshot);
+        setSyncStatus('online', 'Sincronizado');
+      }).catch(function(error) {
+        console.error('Error al guardar en Firebase:', error);
+        setSyncStatus('error', 'Error al sincronizar');
+      });
+    };
+
+    onSnapshot(sharedDoc, async function(snapshot) {
+      if (!snapshot.exists()) {
+        sharedReady = true;
+        try {
+          setSyncStatus('saving', 'Guardando en la nube...');
+          await setDoc(sharedDoc, localSnapshot());
+          setSyncStatus('online', 'Sincronizado');
+        } catch (error) {
+          console.error('Error al crear los datos compartidos:', error);
+          setSyncStatus('error', 'No se pudo conectar');
+        }
+        return;
+      }
+
+      const remote = snapshot.data() || {};
+      window.suppressSharedSave = true;
+      window.state.clients = Array.isArray(remote.clients) ? remote.clients : window.state.clients;
+      window.state.products = Array.isArray(remote.products) ? remote.products : window.state.products;
+      window.state.invoices = Array.isArray(remote.invoices) ? remote.invoices : window.state.invoices;
+      window.state.quotes = Array.isArray(remote.quotes) ? remote.quotes : window.state.quotes;
+      window.state.expenses = Array.isArray(remote.expenses) ? remote.expenses : window.state.expenses;
+      window.state.accounts = Array.isArray(remote.accounts) ? remote.accounts : window.state.accounts;
+      window.state.settings = Object.assign({}, window.state.settings, remote.settings || {});
+      window.suppressSharedSave = false;
+      sharedReady = true;
+      setSyncStatus('online', 'Sincronizado');
+      window.render();
+    }, function(error) {
+      console.error('Error leyendo Firebase:', error);
+      sharedReady = true;
+      setSyncStatus('error', 'Sin conexión');
+    });
   </script>
 </body>
 </html>
