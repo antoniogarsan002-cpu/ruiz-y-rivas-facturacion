@@ -185,7 +185,7 @@
     var esc = function(s) { return String(s).replace(/[&<>"']/g, function(c) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]; }); };
     var today = function() { return new Date().toLocaleDateString('es-ES'); };
     var statusClass = function(s) { return s === 'Pagada' || s === 'Aceptado' ? 'paid' : s === 'Pendiente' || s === 'Enviada' ? 'pending' : s === 'Rechazado' ? 'rejected' : 'draft'; };
-    var status = function(s) { return '<span class="status ' + statusClass(s) + '">' + esc(s) + '</span>'; };
+    var statusBadge = function(s) { return '<span class="status ' + statusClass(s) + '">' + esc(s) + '</span>'; };
     var $ = function(id) { return document.getElementById(id); };
     function saveState() {
       try { localStorage.setItem(storageKey, JSON.stringify({ clients:state.clients, products:state.products, invoices:state.invoices, quotes:state.quotes, expenses:state.expenses })); } catch (e) {}
@@ -230,7 +230,7 @@
     function feature(icon, name, desc) { return '<div class="feature"><div class="ficon">' + icon + '</div><strong>' + name + '</strong><span>' + desc + '</span></div>'; }
     function invoiceTable(items) {
       if (!items.length) return '<div class="empty">No hay facturas.</div>';
-      return '<div class="table-wrap"><table><thead><tr><th>Número</th><th>Cliente</th><th>Fecha</th><th>Estado</th><th class="amount">Total</th></tr></thead><tbody>' + items.map(function(i) { return '<tr><td><strong>' + esc(i.id) + '</strong></td><td>' + esc(i.client) + '</td><td>' + i.date + '</td><td>' + status(i.status) + '</td><td class="amount">' + euro(i.total) + '</td></tr>'; }).join('') + '</tbody></table></div>';
+      return '<div class="table-wrap"><table><thead><tr><th>Número</th><th>Cliente</th><th>Fecha</th><th>Estado</th><th class="amount">Total</th></tr></thead><tbody>' + items.map(function(i) { return '<tr><td><strong>' + esc(i.id) + '</strong></td><td>' + esc(i.client) + '</td><td>' + i.date + '</td><td>' + statusBadge(i.status) + '</td><td class="amount">' + euro(i.total) + '</td></tr>'; }).join('') + '</tbody></table></div>';
     }
 
     function renderInvoices() {
@@ -252,7 +252,7 @@
       setPageMeta('Presupuestos', 'Prepara propuestas y conviértelas en facturas');
       $('workspace').innerHTML = '<div class="view-title"><div><h2>Presupuestos</h2><p>Del presupuesto al cobro, sin volver a escribir los datos.</p></div><button class="primary" data-action="new-quote">+ Nuevo presupuesto</button></div>' +
         '<div class="card list-card"><table><thead><tr><th>Número</th><th>Cliente</th><th>Fecha</th><th>Estado</th><th class="amount">Total</th><th></th></tr></thead><tbody>' +
-        state.quotes.map(function(q) { return '<tr><td><strong>' + q.id + '</strong></td><td>' + esc(q.client) + '</td><td>' + q.date + '</td><td>' + status(q.status) + '</td><td class="amount">' + euro(q.total) + '</td><td><button class="secondary" data-action="convert-quote" data-id="' + q.id + '">Convertir en factura</button></td></tr>'; }).join('') + '</tbody></table></div>' +
+        state.quotes.map(function(q) { return '<tr><td><strong>' + q.id + '</strong></td><td>' + esc(q.client) + '</td><td>' + q.date + '</td><td>' + statusBadge(q.status) + '</td><td class="amount">' + euro(q.total) + '</td><td><button class="secondary" data-action="convert-quote" data-id="' + q.id + '">Convertir en factura</button></td></tr>'; }).join('') + '</tbody></table></div>' +
         '<div class="two-columns" style="margin-top:18px"><div class="card"><h3 style="margin:0 0 12px;font-size:16px">Flujo de venta</h3><div class="progress-row"><div class="progress-label"><span>1. Presupuesto</span><span>Enviado</span></div><div class="progress"><i style="width:100%"></i></div></div><div class="progress-row"><div class="progress-label"><span>2. Aceptación</span><span>Online</span></div><div class="progress"><i style="width:72%"></i></div></div><div class="progress-row"><div class="progress-label"><span>3. Factura</span><span>Un clic</span></div><div class="progress"><i style="width:48%"></i></div></div><div class="progress-row"><div class="progress-label"><span>4. Cobro</span><span>Seguimiento</span></div><div class="progress"><i style="width:35%"></i></div></div></div><div class="card"><h3 style="margin:0 0 12px;font-size:16px">Documentos disponibles</h3><div class="feature-grid" style="grid-template-columns:1fr 1fr">' + feature('▤','Proforma','Para anticipar una venta.') + feature('▥','Albarán','Para entregar productos.') + feature('↻','Recurrente','Para cuotas periódicas.') + feature('✉','Envío email','Comparte el documento.') + '</div></div></div>';
     }
 
