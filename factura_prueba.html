@@ -12,8 +12,8 @@
     button { cursor:pointer; }
     .app { min-height:100vh; display:flex; }
     .sidebar { width:245px; flex:0 0 245px; background:#fff; border-right:1px solid var(--line); padding:22px 14px; }
-    .brand { display:flex; align-items:center; gap:10px; padding:0 10px 24px; }
-    .brand-mark { width:35px; height:35px; border-radius:10px; display:grid; place-items:center; background:var(--primary); color:white; font-weight:800; }
+    .brand { display:flex; flex-direction:column; align-items:flex-start; gap:3px; padding:0 10px 24px; }
+    .brand-logo { width:180px; height:92px; object-fit:contain; object-position:left center; }
     .brand strong { display:block; font-size:13px; line-height:1.2; }
     .brand small { color:var(--muted); font-size:11px; }
     .nav-label { color:#98a2b3; font-size:10px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; padding:14px 12px 7px; }
@@ -109,8 +109,8 @@
   <div class="app">
     <aside class="sidebar">
       <div class="brand">
-        <div class="brand-mark">RR</div>
-        <div><strong>Ruiz y Rivas<br>Consultores</strong><small>Panel de gestión</small></div>
+        <img class="brand-logo" src="logo_ruiz_rivas.png" alt="Ruiz y Rivas Consultores">
+        <small>Panel de gestión</small>
       </div>
       <div class="nav-label">Principal</div>
       <nav class="nav">
