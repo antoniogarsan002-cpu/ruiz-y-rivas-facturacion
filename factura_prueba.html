@@ -84,6 +84,19 @@
     .account-options { display:grid; gap:8px; border:1px solid #d0d5dd; border-radius:8px; padding:10px; background:#fff; }
     .account-option { display:flex; align-items:flex-start; gap:8px; color:var(--ink); font-size:12px; line-height:1.35; cursor:pointer; }
     .account-option input { width:auto; margin-top:2px; }
+    .invoice-lines-card { margin-top:14px; border:1px solid var(--line); border-radius:11px; padding:12px; background:#fbfcfe; }
+    .invoice-line { display:grid; grid-template-columns:minmax(150px,1.5fr) minmax(100px,.7fr) minmax(95px,.55fr) auto; gap:8px; align-items:end; padding:9px 0; border-bottom:1px solid var(--line); }
+    .invoice-line:last-child { border-bottom:0; }
+    .invoice-line label { margin:0; }
+    .invoice-line input, .invoice-line select { width:100%; }
+    .line-remove { padding:9px 10px; }
+    .invoice-summary { display:grid; gap:7px; margin-top:12px; padding-top:10px; border-top:1px solid var(--line); font-size:12px; }
+    .invoice-summary-row { display:flex; justify-content:space-between; gap:12px; }
+    .invoice-summary-row span { color:var(--muted); }
+    .invoice-summary-row.total { font-size:15px; color:var(--ink); }
+    .tax-summary { display:grid; gap:3px; padding:5px 0; }
+    .tax-summary div { display:flex; justify-content:space-between; gap:12px; }
+    .print-invoice { white-space:nowrap; }
     .form-actions { display:flex; gap:9px; justify-content:flex-end; margin-top:18px; }
     .mini-info { border-radius:10px; background:#f8fafc; padding:12px; color:#475467; font-size:12px; line-height:1.5; margin-top:14px; }
     .modal-backdrop { position:fixed; inset:0; background:rgba(16,24,40,.45); display:none; align-items:center; justify-content:center; padding:20px; z-index:10; }
@@ -105,7 +118,7 @@
     .setting-line span { display:block; color:var(--muted); font-size:12px; margin-top:3px; }
     .switch { width:40px; height:22px; border-radius:20px; background:var(--primary); position:relative; }
     .switch:after { content:''; position:absolute; right:3px; top:3px; width:16px; height:16px; border-radius:50%; background:#fff; }
-    @media (max-width:900px) { .sidebar { width:210px; flex-basis:210px; } .cards { grid-template-columns:repeat(2,1fr); } .grid-2, .two-columns { grid-template-columns:1fr; } }
+    @media (max-width:900px) { .sidebar { width:210px; flex-basis:210px; } .cards { grid-template-columns:repeat(2,1fr); } .grid-2, .two-columns { grid-template-columns:1fr; } .invoice-line { grid-template-columns:1fr 1fr; } .invoice-line .line-description { grid-column:1 / -1; } }
     @media (max-width:650px) { .app { display:block; } .sidebar { width:100%; padding:12px; border-right:0; border-bottom:1px solid var(--line); } .brand { padding-bottom:10px; } .nav-label, .side-note { display:none; } .nav { display:grid; grid-template-columns:repeat(4,1fr); } .nav button { padding:8px 3px; justify-content:center; flex-direction:column; gap:2px; font-size:10px; } .nav button:nth-child(n+9) { display:none; } .topbar { padding:14px 16px; } .topbar p, .search { display:none; } .workspace { padding:18px 16px 28px; } .cards { gap:9px; } .card { padding:14px; } .metric .number { font-size:19px; } .feature-grid { grid-template-columns:1fr 1fr; } }
     @media print { .sidebar, .topbar, .view-title button, .toolbar, .modal-backdrop { display:none !important; } .app, .content { display:block; } .workspace { padding:0; } .card { box-shadow:none; } }
   </style>
@@ -197,6 +210,47 @@
     var statusClass = function(s) { return s === 'Pagada' || s === 'Aceptado' ? 'paid' : s === 'Pendiente' || s === 'Enviada' ? 'pending' : s === 'Rechazado' ? 'rejected' : 'draft'; };
     var statusBadge = function(s) { return '<span class="status ' + statusClass(s) + '">' + esc(s) + '</span>'; };
     var paymentLabel = function(i) { if (!i.paymentMethod) return '—'; var labels = { transferencia:'Transferencia', recibo:'Recibo', tarjeta:'Tarjeta', efectivo:'Efectivo' }; var accounts = Array.isArray(i.paymentAccounts) ? i.paymentAccounts : (i.paymentAccount ? [i.paymentAccount] : []); var usesBank = i.paymentMethod === 'transferencia' || i.paymentMethod === 'recibo'; return '<strong>' + (labels[i.paymentMethod] || esc(i.paymentMethod)) + '</strong>' + (usesBank && accounts.length ? '<br><small style="color:#667085">' + accounts.map(function(a) { return esc(a); }).join('<br>') + '</small>' : ''); };
+    var vatOptions = function(selected) { return [{ value:21, label:'21%' }, { value:10, label:'10%' }, { value:4, label:'4%' }, { value:2, label:'2%' }, { value:0, label:'Sin IVA' }].map(function(v) { return '<option value="' + v.value + '"' + (Number(selected) === v.value ? ' selected' : '') + '>' + v.label + '</option>'; }).join(''); };
+    function getInvoiceLines(invoice) {
+      if (Array.isArray(invoice.lines) && invoice.lines.length) return invoice.lines.map(function(line) { return { description:line.description || 'Servicio o producto', base:Number(line.base) || 0, iva:Number(line.iva) || 0 }; });
+      var iva = invoice.iva == null ? 21 : Number(invoice.iva);
+      var base = invoice.subtotal == null ? Number(invoice.total || 0) / (1 + iva / 100) : Number(invoice.subtotal);
+      return [{ description:invoice.description || 'Servicio o producto', base:Number(base.toFixed(2)), iva:iva }];
+    }
+    function invoiceTotals(lines) {
+      var totals = { base:0, tax:0, total:0, byRate:{} };
+      lines.forEach(function(line) { var base = Number(line.base) || 0; var iva = Number(line.iva) || 0; var tax = base * iva / 100; totals.base += base; totals.tax += tax; var key = String(iva); if (!totals.byRate[key]) totals.byRate[key] = { rate:iva, base:0, tax:0 }; totals.byRate[key].base += base; totals.byRate[key].tax += tax; });
+      totals.total = totals.base + totals.tax;
+      return totals;
+    }
+    function invoiceLineRow(line, removable) {
+      return '<div class="invoice-line"><div class="line-description"><label>Descripción</label><input name="lineDescription" value="' + esc(line.description || '') + '" placeholder="Ej.: Consultoría empresarial"></div><div><label>Base imponible (€)</label><input name="lineBase" type="number" min="0" step="0.01" value="' + Number(line.base || 0).toFixed(2) + '"></div><div><label>IVA</label><select name="lineIva">' + vatOptions(line.iva) + '</select></div><button type="button" class="ghost line-remove" data-action="remove-invoice-line"' + (removable ? '' : ' disabled') + '>Quitar</button></div>';
+    }
+    function readInvoiceLines() {
+      return Array.prototype.slice.call(document.querySelectorAll('#invoiceLines .invoice-line')).map(function(row) { return { description:row.querySelector('[name="lineDescription"]').value.trim() || 'Servicio o producto', base:Number(row.querySelector('[name="lineBase"]').value) || 0, iva:Number(row.querySelector('[name="lineIva"]').value) || 0 }; });
+    }
+    function taxSummaryHtml(totals) {
+      return Object.keys(totals.byRate).sort(function(a,b) { return Number(b) - Number(a); }).map(function(key) { var row = totals.byRate[key]; return '<div><span>Base ' + (row.rate ? row.rate + '%' : 'sin IVA') + ': ' + euro(row.base) + '</span><strong>IVA: ' + euro(row.tax) + '</strong></div>'; }).join('');
+    }
+    function refreshInvoiceLineSummary() {
+      var lines = readInvoiceLines();
+      var totals = invoiceTotals(lines);
+      if ($('invoiceBaseTotal')) $('invoiceBaseTotal').textContent = euro(totals.base);
+      if ($('invoiceTaxSummary')) $('invoiceTaxSummary').innerHTML = taxSummaryHtml(totals);
+      if ($('invoiceGrandTotal')) $('invoiceGrandTotal').textContent = euro(totals.total);
+    }
+    function addInvoiceLine() {
+      var lines = $('invoiceLines');
+      if (!lines) return;
+      lines.insertAdjacentHTML('beforeend', invoiceLineRow({ description:'Nueva línea', base:0, iva:21 }, true));
+      refreshInvoiceLineSummary();
+    }
+    function removeInvoiceLine(button) {
+      var rows = document.querySelectorAll('#invoiceLines .invoice-line');
+      if (rows.length <= 1) { toast('Debe quedar al menos una línea en la factura'); return; }
+      button.closest('.invoice-line').remove();
+      refreshInvoiceLineSummary();
+    }
     var $ = function(id) { return document.getElementById(id); };
     function saveState() {
       try { localStorage.setItem(storageKey, JSON.stringify({ clients:state.clients, products:state.products, invoices:state.invoices, quotes:state.quotes, expenses:state.expenses, accounts:state.accounts })); } catch (e) {}
@@ -241,13 +295,13 @@
     function feature(icon, name, desc) { return '<div class="feature"><div class="ficon">' + icon + '</div><strong>' + name + '</strong><span>' + desc + '</span></div>'; }
     function invoiceTable(items, actions) {
       if (!items.length) return '<div class="empty">No hay facturas.</div>';
-      return '<div class="table-wrap"><table><thead><tr><th>Número</th><th>Cliente</th><th>Fecha</th><th>Estado</th><th>Cobro</th><th class="amount">Total</th>' + (actions ? '<th></th>' : '') + '</tr></thead><tbody>' + items.map(function(i) { return '<tr><td><strong>' + esc(i.id) + '</strong></td><td>' + esc(i.client) + '</td><td>' + i.date + '</td><td>' + statusBadge(i.status) + '</td><td>' + paymentLabel(i) + '</td><td class="amount">' + euro(i.total) + '</td>' + (actions ? '<td><div class="row-actions"><button class="ghost" data-action="edit-invoice" data-id="' + esc(i.id) + '">Editar</button><button class="danger" data-action="delete-invoice" data-id="' + esc(i.id) + '">Borrar</button></div></td>' : '') + '</tr>'; }).join('') + '</tbody></table></div>';
+      return '<div class="table-wrap"><table><thead><tr><th>Número</th><th>Cliente</th><th>Fecha</th><th>Estado</th><th>Cobro</th><th class="amount">Total</th>' + (actions ? '<th></th>' : '') + '</tr></thead><tbody>' + items.map(function(i) { return '<tr><td><strong>' + esc(i.id) + '</strong></td><td>' + esc(i.client) + '</td><td>' + i.date + '</td><td>' + statusBadge(i.status) + '</td><td>' + paymentLabel(i) + '</td><td class="amount">' + euro(i.total) + '</td>' + (actions ? '<td><div class="row-actions"><button class="ghost" data-action="edit-invoice" data-id="' + esc(i.id) + '">Editar</button><button class="danger" data-action="delete-invoice" data-id="' + esc(i.id) + '">Borrar</button><button class="secondary print-invoice" data-action="print-invoice" data-id="' + esc(i.id) + '">PDF</button></div></td>' : '') + '</tr>'; }).join('') + '</tbody></table></div>';
     }
 
     function renderInvoices() {
       setPageMeta('Facturas', 'Crea y controla tus facturas de venta');
       $('workspace').innerHTML = '<div class="view-title"><div><h2>Tus facturas</h2><p>Numeración, IVA, estados y seguimiento de cobros.</p></div><button class="primary" data-action="new-invoice">+ Nueva factura</button></div>' +
-        '<div class="toolbar"><input id="invoiceSearch" placeholder="Buscar por cliente o número..."><select id="invoiceFilter"><option value="">Todos los estados</option><option>Pagada</option><option>Pendiente</option><option>Borrador</option></select><button class="ghost" data-action="print">Imprimir listado</button></div>' +
+        '<div class="toolbar"><input id="invoiceSearch" placeholder="Buscar por cliente o número..."><select id="invoiceFilter"><option value="">Todos los estados</option><option>Pagada</option><option>Pendiente</option><option>Borrador</option></select><button class="ghost" data-action="print">Imprimir listado</button><button class="secondary" data-action="print-all-invoices">Descargar todo en PDF</button></div>' +
         '<div class="card list-card">' + invoiceTable(state.invoices, true) + '</div>' +
         '<div class="feature-grid" style="margin-top:18px">' + feature('↻','Facturas recurrentes','Genera facturas mensuales automáticamente.') + feature('↩','Rectificativas','Corrige devoluciones o errores.') + feature('✉','Recordatorios','Avisa de pagos pendientes.') + '</div>';
       $('invoiceSearch').addEventListener('input', filterInvoices);
@@ -325,16 +379,17 @@
     }
     function closeModal() { $('modalBackdrop').classList.remove('open'); }
     function newInvoice() {
+      var firstProduct = state.products[0] || { name:'Servicio o producto', price:0 };
       var clientOptions = state.clients.map(function(c) { return '<option>' + esc(c.name) + '</option>'; }).join('');
       var productOptions = state.products.map(function(p) { return '<option value="' + p.price + '">' + esc(p.name) + '</option>'; }).join('');
       var accountOptions = state.accounts.map(function(a) { return '<label class="account-option"><input type="checkbox" name="accounts" value="' + a.id + '" checked><span>' + esc(a.name) + ' · ' + esc(a.iban) + '</span></label>'; }).join('');
-      openModal('Nueva factura', '<form class="form"><div class="form-grid"><div><label>Cliente</label><select name="client">' + clientOptions + '</select></div><div><label>Fecha</label><input name="date" value="' + today() + '"></div></div><label>Producto o servicio</label><select id="invoiceProduct" name="product">' + productOptions + '</select><div class="form-grid"><div><label>Precio sin IVA (€)</label><input id="invoicePrice" name="price" type="number" step="0.01" value="' + state.products[0].price + '"></div><div><label>IVA</label><select id="invoiceIva" name="iva"><option value="21">21%</option><option value="10">10%</option><option value="4">4%</option><option value="2">2%</option><option value="0">Sin IVA</option></select></div></div><div class="form-grid"><div><label>Tipo de cobro</label><select id="invoicePayment" name="payment"><option value="transferencia">Transferencia</option><option value="recibo">Recibo</option><option value="tarjeta">Tarjeta</option><option value="efectivo">Efectivo</option></select></div><div id="invoiceAccountWrap"><label>Cuentas bancarias que aparecerán en la factura</label><div class="account-options">' + accountOptions + '</div></div></div><div class="mini-info" id="invoicePaymentHint">Las cuentas seleccionadas aparecerán en la factura como cuentas de cobro.</div><div class="mini-info" id="invoiceTotalPreview">Total estimado: ' + euro(state.products[0].price * 1.21) + '</div><label>Notas</label><textarea name="notes" placeholder="Condiciones de pago..."></textarea><div class="form-actions"><button type="button" class="ghost" data-action="close-modal">Cancelar</button><button class="primary">Crear factura</button></div></form>', function(data) { var subtotal = Number(data.get('price')) || 0; var iva = Number(data.get('iva')) || 0; var selectedIds = data.getAll('accounts'); var selectedAccounts = state.accounts.filter(function(a) { return selectedIds.some(function(id) { return String(a.id) === String(id); }); }); var accountLabels = selectedAccounts.map(function(a) { return a.name + ' · ' + a.iban; }); var num = 'F-2026-' + String(state.invoices.length + 5).padStart(3,'0'); state.invoices.unshift({ id:num, client:data.get('client'), date:data.get('date'), status:'Borrador', total:subtotal * (1 + iva / 100), iva:iva, paymentMethod:data.get('payment'), paymentAccount:accountLabels.join(' · '), paymentAccounts:accountLabels }); closeModal(); state.view = 'facturas'; toast('Factura creada como borrador'); render(); });
-      $('invoiceProduct').addEventListener('change', function() { $('invoicePrice').value = this.value; updateInvoicePreview(); });
-      $('invoicePrice').addEventListener('input', updateInvoicePreview);
-      $('invoiceIva').addEventListener('change', updateInvoicePreview);
+      openModal('Nueva factura', '<form class="form"><div class="form-grid"><div><label>Cliente</label><select name="client">' + clientOptions + '</select></div><div><label>Fecha</label><input name="date" value="' + today() + '"></div></div><label>Producto o servicio de referencia</label><select id="invoiceProduct" name="product">' + productOptions + '</select><div class="invoice-lines-card"><div class="card-head"><div><strong>Desglose de bases imponibles</strong><span style="display:block;color:#667085;font-size:12px;margin-top:3px">Añade una línea por cada base y tipo de IVA.</span></div><button type="button" class="secondary" data-action="add-invoice-line">+ Añadir línea</button></div><div id="invoiceLines">' + invoiceLineRow({ description:firstProduct.name, base:firstProduct.price, iva:21 }, true) + '</div><div class="invoice-summary"><div class="invoice-summary-row"><span>Base imponible total</span><strong id="invoiceBaseTotal">0,00 €</strong></div><div class="tax-summary" id="invoiceTaxSummary"></div><div class="invoice-summary-row total"><span>Total factura</span><strong id="invoiceGrandTotal">0,00 €</strong></div></div></div><div class="form-grid"><div><label>Tipo de cobro</label><select id="invoicePayment" name="payment"><option value="transferencia">Transferencia</option><option value="recibo">Recibo</option><option value="tarjeta">Tarjeta</option><option value="efectivo">Efectivo</option></select></div><div id="invoiceAccountWrap"><label>Cuentas bancarias que aparecerán en la factura</label><div class="account-options">' + accountOptions + '</div></div></div><div class="mini-info" id="invoicePaymentHint">Las cuentas seleccionadas aparecerán en la factura como cuentas de cobro.</div><label>Notas</label><textarea name="notes" placeholder="Condiciones de pago..."></textarea><div class="form-actions"><button type="button" class="ghost" data-action="close-modal">Cancelar</button><button class="primary">Crear factura</button></div></form>', function(data) { var lines = readInvoiceLines(); var totals = invoiceTotals(lines); var selectedIds = data.getAll('accounts'); var selectedAccounts = state.accounts.filter(function(a) { return selectedIds.some(function(id) { return String(a.id) === String(id); }); }); var accountLabels = selectedAccounts.map(function(a) { return a.name + ' · ' + a.iban; }); var commonIva = lines.length && lines.every(function(line) { return line.iva === lines[0].iva; }) ? lines[0].iva : null; var num = 'F-2026-' + String(state.invoices.length + 5).padStart(3,'0'); state.invoices.unshift({ id:num, client:data.get('client'), date:data.get('date'), status:'Borrador', subtotal:totals.base, total:totals.total, iva:commonIva, lines:lines, paymentMethod:data.get('payment'), paymentAccount:accountLabels.join(' · '), paymentAccounts:accountLabels, notes:data.get('notes') || '' }); closeModal(); state.view = 'facturas'; toast('Factura creada como borrador'); render(); });
+      $('invoiceProduct').addEventListener('change', function() { var product = state.products.find(function(p) { return String(p.price) === String($('invoiceProduct').value); }); var firstLine = $('invoiceLines').querySelector('.invoice-line'); if (product && firstLine) { firstLine.querySelector('[name="lineDescription"]').value = product.name; firstLine.querySelector('[name="lineBase"]').value = Number(product.price).toFixed(2); refreshInvoiceLineSummary(); } });
+      $('invoiceLines').addEventListener('input', refreshInvoiceLineSummary);
+      $('invoiceLines').addEventListener('change', refreshInvoiceLineSummary);
       $('invoicePayment').addEventListener('change', updatePaymentFields);
       function updatePaymentFields() { var usesBank = $('invoicePayment').value === 'transferencia' || $('invoicePayment').value === 'recibo'; $('invoiceAccountWrap').style.display = usesBank ? 'block' : 'none'; $('invoicePaymentHint').textContent = usesBank ? 'Las cuentas seleccionadas aparecerán en la factura como cuentas de cobro.' : 'Este tipo de cobro no necesita mostrar una cuenta bancaria.'; }
-      function updateInvoicePreview() { $('invoiceTotalPreview').textContent = 'Total estimado: ' + euro((Number($('invoicePrice').value) || 0) * (1 + (Number($('invoiceIva').value) || 0) / 100)); }
+      refreshInvoiceLineSummary();
       updatePaymentFields();
     }
     function newClient() {
@@ -362,23 +417,26 @@
     function editInvoice(id) {
       var invoice = state.invoices.find(function(i) { return String(i.id) === String(id); });
       if (!invoice) return;
-      var currentIva = invoice.iva == null ? 21 : Number(invoice.iva);
-      var currentSubtotal = invoice.subtotal == null ? invoice.total / (1 + currentIva / 100) : invoice.subtotal;
+      var currentLines = getInvoiceLines(invoice);
+      var currentPayment = invoice.paymentMethod || 'transferencia';
       var clientOptions = state.clients.map(function(c) { return '<option value="' + esc(c.name) + '"' + (c.name === invoice.client ? ' selected' : '') + '>' + esc(c.name) + '</option>'; }).join('');
       var invoiceAccountLabels = Array.isArray(invoice.paymentAccounts) ? invoice.paymentAccounts : (invoice.paymentAccount ? [invoice.paymentAccount] : []);
       if (!invoiceAccountLabels.length && state.accounts.length) invoiceAccountLabels = [state.accounts[0].name + ' · ' + state.accounts[0].iban];
       var accountOptions = state.accounts.map(function(a) { var label = a.name + ' · ' + a.iban; return '<label class="account-option"><input type="checkbox" name="accounts" value="' + a.id + '"' + (invoiceAccountLabels.indexOf(label) >= 0 ? ' checked' : '') + '><span>' + esc(label) + '</span></label>'; }).join('');
-      openModal('Modificar factura ' + esc(invoice.id), '<form class="form"><div class="form-grid"><div><label>Cliente</label><select name="client">' + clientOptions + '</select></div><div><label>Fecha</label><input name="date" value="' + esc(invoice.date) + '"></div></div><div class="form-grid"><div><label>Importe sin IVA (€)</label><input id="editInvoicePrice" name="price" type="number" step="0.01" min="0" value="' + Number(currentSubtotal).toFixed(2) + '"></div><div><label>IVA</label><select id="editInvoiceIva" name="iva"><option value="21"' + (currentIva === 21 ? ' selected' : '') + '>21%</option><option value="10"' + (currentIva === 10 ? ' selected' : '') + '>10%</option><option value="4"' + (currentIva === 4 ? ' selected' : '') + '>4%</option><option value="2"' + (currentIva === 2 ? ' selected' : '') + '>2%</option><option value="0"' + (currentIva === 0 ? ' selected' : '') + '>Sin IVA</option></select></div></div><div class="form-grid"><div><label>Estado</label><select name="status"><option' + (invoice.status === 'Borrador' ? ' selected' : '') + '>Borrador</option><option' + (invoice.status === 'Pendiente' ? ' selected' : '') + '>Pendiente</option><option' + (invoice.status === 'Pagada' ? ' selected' : '') + '>Pagada</option></select></div><div><label>Tipo de cobro</label><select id="editInvoicePayment" name="payment"><option value="transferencia"' + (invoice.paymentMethod === 'transferencia' ? ' selected' : '') + '>Transferencia</option><option value="recibo"' + (invoice.paymentMethod === 'recibo' ? ' selected' : '') + '>Recibo</option><option value="tarjeta"' + (invoice.paymentMethod === 'tarjeta' ? ' selected' : '') + '>Tarjeta</option><option value="efectivo"' + (invoice.paymentMethod === 'efectivo' ? ' selected' : '') + '>Efectivo</option></select></div></div><div id="editInvoiceAccountWrap"><label>Cuentas bancarias que aparecerán en la factura</label><div class="account-options">' + accountOptions + '</div></div><div class="mini-info" id="editInvoiceTotalPreview">Total con IVA: ' + euro(currentSubtotal * (1 + currentIva / 100)) + '</div><label>Notas</label><textarea name="notes" placeholder="Condiciones de pago...">' + esc(invoice.notes || '') + '</textarea><div class="form-actions"><button type="button" class="ghost" data-action="close-modal">Cancelar</button><button class="primary">Guardar cambios</button></div></form>', function(data) {
-        var subtotal = Number(data.get('price')) || 0;
-        var iva = Number(data.get('iva')) || 0;
+      openModal('Modificar factura ' + esc(invoice.id), '<form class="form"><div class="form-grid"><div><label>Número de factura</label><input name="number" value="' + esc(invoice.id) + '"></div><div><label>Fecha</label><input name="date" value="' + esc(invoice.date) + '"></div></div><label>Cliente</label><select name="client">' + clientOptions + '</select><div class="form-grid"><div><label>Estado</label><select name="status"><option' + (invoice.status === 'Borrador' ? ' selected' : '') + '>Borrador</option><option' + (invoice.status === 'Pendiente' ? ' selected' : '') + '>Pendiente</option><option' + (invoice.status === 'Pagada' ? ' selected' : '') + '>Pagada</option><option' + (invoice.status === 'Enviada' ? ' selected' : '') + '>Enviada</option><option' + (invoice.status === 'Rechazada' ? ' selected' : '') + '>Rechazada</option></select></div><div><label>Tipo de cobro</label><select id="editInvoicePayment" name="payment"><option value="transferencia"' + (currentPayment === 'transferencia' ? ' selected' : '') + '>Transferencia</option><option value="recibo"' + (currentPayment === 'recibo' ? ' selected' : '') + '>Recibo</option><option value="tarjeta"' + (currentPayment === 'tarjeta' ? ' selected' : '') + '>Tarjeta</option><option value="efectivo"' + (currentPayment === 'efectivo' ? ' selected' : '') + '>Efectivo</option></select></div></div><div class="invoice-lines-card"><div class="card-head"><div><strong>Desglose de bases imponibles</strong><span style="display:block;color:#667085;font-size:12px;margin-top:3px">Edita descripción, base e IVA de cada línea.</span></div><button type="button" class="secondary" data-action="add-invoice-line">+ Añadir línea</button></div><div id="invoiceLines">' + currentLines.map(function(line) { return invoiceLineRow(line, true); }).join('') + '</div><div class="invoice-summary"><div class="invoice-summary-row"><span>Base imponible total</span><strong id="invoiceBaseTotal">0,00 €</strong></div><div class="tax-summary" id="invoiceTaxSummary"></div><div class="invoice-summary-row total"><span>Total factura</span><strong id="invoiceGrandTotal">0,00 €</strong></div></div></div><div id="editInvoiceAccountWrap"><label>Cuentas bancarias que aparecerán en la factura</label><div class="account-options">' + accountOptions + '</div></div><label>Notas</label><textarea name="notes" placeholder="Condiciones de pago...">' + esc(invoice.notes || '') + '</textarea><div class="form-actions"><button type="button" class="ghost" data-action="close-modal">Cancelar</button><button class="primary">Guardar cambios</button></div></form>', function(data) {
+        var lines = readInvoiceLines();
+        var totals = invoiceTotals(lines);
+        var commonIva = lines.length && lines.every(function(line) { return line.iva === lines[0].iva; }) ? lines[0].iva : null;
         var selectedIds = data.getAll('accounts');
         var selectedAccounts = state.accounts.filter(function(a) { return selectedIds.some(function(accountId) { return String(a.id) === String(accountId); }); });
         var accountLabels = selectedAccounts.map(function(a) { return a.name + ' · ' + a.iban; });
+        invoice.id = data.get('number') || invoice.id;
         invoice.client = data.get('client');
         invoice.date = data.get('date');
-        invoice.subtotal = subtotal;
-        invoice.iva = iva;
-        invoice.total = subtotal * (1 + iva / 100);
+        invoice.subtotal = totals.base;
+        invoice.iva = commonIva;
+        invoice.lines = lines;
+        invoice.total = totals.total;
         invoice.status = data.get('status');
         invoice.paymentMethod = data.get('payment');
         invoice.paymentAccount = accountLabels.join(' · ');
@@ -389,20 +447,16 @@
         toast('Factura modificada');
         render();
       });
-      var usesBank = invoice.paymentMethod === 'transferencia' || invoice.paymentMethod === 'recibo';
+      var usesBank = currentPayment === 'transferencia' || currentPayment === 'recibo';
       $('editInvoiceAccountWrap').style.display = usesBank ? 'block' : 'none';
       function updateEditPaymentFields() {
         var bank = $('editInvoicePayment').value === 'transferencia' || $('editInvoicePayment').value === 'recibo';
         $('editInvoiceAccountWrap').style.display = bank ? 'block' : 'none';
       }
-      function updateEditInvoiceTotal() {
-        var subtotal = Number($('editInvoicePrice').value) || 0;
-        var iva = Number($('editInvoiceIva').value) || 0;
-        $('editInvoiceTotalPreview').textContent = 'Total con IVA: ' + euro(subtotal * (1 + iva / 100));
-      }
+      $('invoiceLines').addEventListener('input', refreshInvoiceLineSummary);
+      $('invoiceLines').addEventListener('change', refreshInvoiceLineSummary);
       $('editInvoicePayment').addEventListener('change', updateEditPaymentFields);
-      $('editInvoicePrice').addEventListener('input', updateEditInvoiceTotal);
-      $('editInvoiceIva').addEventListener('change', updateEditInvoiceTotal);
+      refreshInvoiceLineSummary();
     }
 
     function deleteInvoice(id) {
@@ -415,6 +469,31 @@
         toast('Factura borrada');
         render();
       });
+    }
+
+    function printableInvoiceBlock(invoice) {
+      var lines = getInvoiceLines(invoice);
+      var totals = invoiceTotals(lines);
+      var accounts = Array.isArray(invoice.paymentAccounts) ? invoice.paymentAccounts : (invoice.paymentAccount ? [invoice.paymentAccount] : []);
+      var paymentNames = { transferencia:'Transferencia', recibo:'Recibo', tarjeta:'Tarjeta', efectivo:'Efectivo' };
+      var lineRows = lines.map(function(line) { var tax = (Number(line.base) || 0) * (Number(line.iva) || 0) / 100; return '<tr><td>' + esc(line.description) + '</td><td class="num">' + euro(line.base) + '</td><td class="num">' + (line.iva ? line.iva + '%' : 'Sin IVA') + '</td><td class="num">' + euro(tax) + '</td><td class="num">' + euro((Number(line.base) || 0) + tax) + '</td></tr>'; }).join('');
+      return '<section class="invoice-paper"><div class="print-head"><div><img src="' + new URL('logo_ruiz_rivas.png', document.location.href).href + '" alt="Ruiz y Rivas Consultores"><h1>Ruiz y Rivas Consultores</h1></div><div class="print-title"><strong>FACTURA</strong><span>' + esc(invoice.id) + '</span></div></div><div class="print-meta"><div><strong>Cliente</strong><span>' + esc(invoice.client) + '</span></div><div><strong>Fecha</strong><span>' + esc(invoice.date) + '</span></div><div><strong>Estado</strong><span>' + esc(invoice.status) + '</span></div><div><strong>Forma de cobro</strong><span>' + (paymentNames[invoice.paymentMethod] || 'No indicada') + '</span></div></div><table class="print-lines"><thead><tr><th>Descripción</th><th class="num">Base imponible</th><th class="num">IVA</th><th class="num">Cuota IVA</th><th class="num">Total</th></tr></thead><tbody>' + lineRows + '</tbody></table><div class="print-bottom"><div class="print-notes"><strong>Cuentas de cobro</strong><span>' + (accounts.length ? accounts.map(function(a) { return esc(a); }).join('<br>') : 'No indicada') + '</span><strong>Notas</strong><span>' + esc(invoice.notes || '—') + '</span></div><div class="print-totals"><div><span>Base imponible</span><strong>' + euro(totals.base) + '</strong></div><div class="print-tax-summary">' + taxSummaryHtml(totals) + '</div><div class="grand"><span>Total factura</span><strong>' + euro(totals.total) + '</strong></div></div></div></section>';
+    }
+    function openPrintDocument(title, body) {
+      var popup = window.open('', '_blank');
+      if (!popup) { toast('El navegador ha bloqueado la ventana del PDF. Permite las ventanas emergentes e inténtalo de nuevo.'); return; }
+      popup.document.open();
+      popup.document.write('<!doctype html><html lang="es"><head><meta charset="utf-8"><title>' + esc(title) + '</title><style>@page{size:A4;margin:16mm}*{box-sizing:border-box}body{font-family:Arial,Helvetica,sans-serif;color:#172033;margin:0;background:#fff;font-size:12px}.invoice-paper{page-break-after:always;padding-bottom:8mm}.invoice-paper:last-child{page-break-after:auto}.print-head{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #3157d5;padding-bottom:14px;margin-bottom:18px}.print-head img{width:120px;height:68px;object-fit:contain;object-position:left center;display:block}.print-head h1{font-size:14px;margin:3px 0 0;color:#3157d5}.print-title{text-align:right;display:flex;flex-direction:column;gap:5px;font-size:15px}.print-title strong{font-size:24px;letter-spacing:.08em;color:#3157d5}.print-meta{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:22px}.print-meta div{border:1px solid #e5e7eb;border-radius:8px;padding:9px}.print-meta strong,.print-notes strong{display:block;color:#667085;font-size:10px;text-transform:uppercase;margin-bottom:4px}.print-meta span{display:block;font-size:12px}.print-lines{width:100%;border-collapse:collapse;margin-bottom:20px}.print-lines th{background:#f1f4ff;color:#3157d5;text-align:left;font-size:10px;text-transform:uppercase;padding:9px 7px;border-bottom:1px solid #dce3ff}.print-lines td{padding:10px 7px;border-bottom:1px solid #e5e7eb}.num{text-align:right}.print-bottom{display:grid;grid-template-columns:1.3fr .7fr;gap:30px}.print-notes{display:grid;gap:5px;align-content:start}.print-notes strong:nth-of-type(2){margin-top:13px}.print-totals{border:1px solid #e5e7eb;border-radius:8px;padding:12px}.print-totals>div{display:flex;justify-content:space-between;gap:12px;padding:5px 0}.print-tax-summary{display:block!important;font-size:11px;color:#667085;border-top:1px solid #e5e7eb;border-bottom:1px solid #e5e7eb;margin:5px 0}.print-tax-summary div{display:flex;justify-content:space-between;padding:3px 0}.print-totals .grand{font-size:16px;color:#3157d5;padding-top:10px}@media print{.invoice-paper{break-after:page}.invoice-paper:last-child{break-after:auto}}</style></head><body>' + body + '</body></html>');
+      popup.document.close();
+      setTimeout(function() { popup.focus(); popup.print(); }, 450);
+    }
+    function printInvoice(id) {
+      var invoice = state.invoices.find(function(i) { return String(i.id) === String(id); });
+      if (invoice) openPrintDocument('Factura ' + invoice.id, printableInvoiceBlock(invoice));
+    }
+    function printAllInvoices() {
+      if (!state.invoices.length) { toast('No hay facturas para descargar'); return; }
+      openPrintDocument('Facturas Ruiz y Rivas Consultores', state.invoices.map(printableInvoiceBlock).join(''));
     }
 
     document.addEventListener('click', function(e) {
@@ -433,6 +512,10 @@
       if (a === 'edit-account') editAccount(action.dataset.id);
       if (a === 'edit-invoice') editInvoice(action.dataset.id);
       if (a === 'delete-invoice') deleteInvoice(action.dataset.id);
+      if (a === 'add-invoice-line') addInvoiceLine();
+      if (a === 'remove-invoice-line') removeInvoiceLine(action);
+      if (a === 'print-invoice') printInvoice(action.dataset.id);
+      if (a === 'print-all-invoices') printAllInvoices();
       if (a === 'close-modal') closeModal();
       if (a === 'print') window.print();
       if (a === 'import') toast('Aquí podrías importar clientes, productos y facturas desde Excel o CSV.');
