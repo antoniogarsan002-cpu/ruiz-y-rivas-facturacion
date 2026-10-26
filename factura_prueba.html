@@ -96,7 +96,7 @@
     .account-option { display:flex; align-items:flex-start; gap:8px; color:var(--ink); font-size:12px; line-height:1.35; cursor:pointer; }
     .account-option input { width:auto; margin-top:2px; }
     .invoice-lines-card { margin-top:14px; border:1px solid var(--line); border-radius:11px; padding:12px; background:#fbfcfe; }
-    .invoice-line { display:grid; grid-template-columns:minmax(150px,1.5fr) minmax(100px,.7fr) minmax(95px,.55fr) auto; gap:8px; align-items:end; padding:9px 0; border-bottom:1px solid var(--line); }
+    .invoice-line { display:grid; grid-template-columns:minmax(180px,1.2fr) minmax(180px,1.5fr) minmax(100px,.7fr) minmax(95px,.55fr) auto; gap:8px; align-items:end; padding:9px 0; border-bottom:1px solid var(--line); }
     .invoice-line:last-child { border-bottom:0; }
     .invoice-line label { margin:0; }
     .invoice-line input, .invoice-line select { width:100%; }
@@ -131,7 +131,7 @@
     .switch.off { background:#d0d5dd; }
     .switch.off:after { left:3px; right:auto; }
     .switch:after { content:''; position:absolute; right:3px; top:3px; width:16px; height:16px; border-radius:50%; background:#fff; }
-    @media (max-width:900px) { .sidebar { width:210px; flex-basis:210px; } .cards { grid-template-columns:repeat(2,1fr); } .grid-2, .two-columns { grid-template-columns:1fr; } .invoice-line { grid-template-columns:1fr 1fr; } .invoice-line .line-description { grid-column:1 / -1; } .row-actions { flex-wrap:wrap; } }
+    @media (max-width:900px) { .sidebar { width:210px; flex-basis:210px; } .cards { grid-template-columns:repeat(2,1fr); } .grid-2, .two-columns { grid-template-columns:1fr; } .invoice-line { grid-template-columns:1fr 1fr; } .invoice-line .line-product, .invoice-line .line-description { grid-column:1 / -1; } .row-actions { flex-wrap:wrap; } }
     @media (max-width:650px) { .app { display:block; } .sidebar { width:100%; padding:12px; border-right:0; border-bottom:1px solid var(--line); } .brand { padding-bottom:10px; } .nav-label, .side-note { display:none; } .nav { display:grid; grid-template-columns:repeat(4,1fr); } .nav button { padding:8px 3px; justify-content:center; flex-direction:column; gap:2px; font-size:10px; } .nav button:nth-child(n+9) { display:none; } .topbar { padding:14px 16px; align-items:flex-start; } .topbar h1 { font-size:18px; } .top-actions { gap:6px; } .top-actions .primary { padding:9px 10px; font-size:11px; } .sync-badge { padding:6px 8px; font-size:10px; } .topbar p, .search { display:none; } .workspace { padding:18px 16px 28px; } .cards { gap:9px; } .card { padding:14px; } .metric .number { font-size:19px; } .feature-grid { grid-template-columns:1fr 1fr; } .form-grid { grid-template-columns:1fr; gap:0; } .invoice-line { grid-template-columns:1fr; } .invoice-line .line-description { grid-column:auto; } .modal-backdrop { padding:10px; } .modal { padding:17px; border-radius:13px; } .form-actions { flex-wrap:wrap; } .form-actions button { flex:1 1 auto; } }
     @media print { .sidebar, .topbar, .view-title button, .toolbar, .modal-backdrop { display:none !important; } .app, .content { display:block; } .workspace { padding:0; } .card { box-shadow:none; } }
   </style>
@@ -668,6 +668,61 @@
       refreshInvoiceLineSummary();
       updatePaymentFields();
     }
+    function invoiceProductOptions(selectedId) {
+      var options = '<option value="">Elegir servicio o producto...</option>';
+      return options + state.products.map(function(p) { return '<option value="' + esc(p.id) + '"' + (String(selectedId || '') === String(p.id) ? ' selected' : '') + '>' + esc(p.name) + (productBase(p) ? ' · ' + esc(euro(productBase(p))) : ' · Sin precio') + '</option>'; }).join('');
+    }
+    function invoiceLineRow(line, removable) {
+      var selectedProduct = line.productId == null ? '' : line.productId;
+      return '<div class="invoice-line"><div class="line-product"><label>Servicio o producto</label><select name="lineProduct">' + invoiceProductOptions(selectedProduct) + '</select></div><div class="line-description"><label>Descripción</label><input name="lineDescription" value="' + esc(line.description || '') + '" placeholder="Ej.: Consultoría empresarial"></div><div><label>Base imponible (€)</label><input name="lineBase" type="number" min="0" step="0.01" value="' + productBase({ price:line.base }).toFixed(2) + '"></div><div><label>IVA</label><select name="lineIva">' + vatOptions(line.iva) + '</select></div><button type="button" class="ghost line-remove" data-action="remove-invoice-line"' + (removable ? '' : ' disabled') + '>Quitar</button></div>';
+    }
+    function getInvoiceLines(invoice) {
+      if (Array.isArray(invoice.lines) && invoice.lines.length) return invoice.lines.map(function(line) { return { productId:line.productId || line.product || '', description:line.description || 'Servicio o producto', base:parseAmount(line.base), iva:parseAmount(line.iva) || 0 }; });
+      var iva = invoice.iva == null ? 21 : parseAmount(invoice.iva);
+      var base = invoice.subtotal == null ? parseAmount(invoice.total) / (1 + iva / 100) : parseAmount(invoice.subtotal);
+      return [{ productId:'', description:invoice.description || 'Servicio o producto', base:Number(base.toFixed(2)), iva:iva }];
+    }
+    function readInvoiceLines() {
+      return Array.prototype.slice.call(document.querySelectorAll('#invoiceLines .invoice-line')).map(function(row) { return { productId:row.querySelector('[name="lineProduct"]').value || '', description:row.querySelector('[name="lineDescription"]').value.trim() || 'Servicio o producto', base:parseAmount(row.querySelector('[name="lineBase"]').value), iva:parseAmount(row.querySelector('[name="lineIva"]').value) || 0 }; });
+    }
+    function applyInvoiceLineProduct(select) {
+      var row = select && select.closest('.invoice-line');
+      var product = select && state.products.find(function(p) { return String(p.id) === String(select.value); });
+      if (!row || !product) return;
+      row.querySelector('[name="lineDescription"]').value = product.name;
+      row.querySelector('[name="lineBase"]').value = productBase(product).toFixed(2);
+      row.querySelector('[name="lineIva"]').value = String(product.vat == null ? state.settings.defaultVat : product.vat);
+    }
+    function newInvoice() {
+      var firstProduct = state.products[0] || { name:'Servicio o producto', price:0, id:'' };
+      var clientOptions = state.clients.map(function(c) { return '<option>' + esc(c.name) + '</option>'; }).join('');
+      var accountOptions = state.accounts.map(function(a) { return '<label class="account-option"><input type="checkbox" name="accounts" value="' + a.id + '" checked><span>' + esc(a.name) + ' · ' + esc(a.iban) + '</span></label>'; }).join('');
+      var firstProductBase = productBase(firstProduct);
+      var firstProductIva = firstProduct.vat == null ? Number(state.settings.defaultVat) : Number(firstProduct.vat);
+      var body = '<form class="form"><div class="form-grid"><div><label>Cliente</label><select name="client">' + clientOptions + '</select></div><div><label>Fecha</label><input name="date" value="' + today() + '"></div></div><div class="invoice-lines-card"><div class="card-head"><div><strong>Desglose de bases imponibles</strong><span style="display:block;color:#667085;font-size:12px;margin-top:3px">Elige el servicio en cada línea y después revisa su base e IVA.</span></div><button type="button" class="secondary" data-action="add-invoice-line">+ Añadir línea</button></div><div id="invoiceLines">' + invoiceLineRow({ productId:firstProduct.id, description:firstProduct.name, base:firstProductBase, iva:firstProductIva }, true) + '</div><div class="invoice-summary"><div class="invoice-summary-row"><span>Base imponible total</span><strong id="invoiceBaseTotal">0,00 €</strong></div><div class="tax-summary" id="invoiceTaxSummary"></div><div class="invoice-summary-row total"><span>Total factura</span><strong id="invoiceGrandTotal">0,00 €</strong></div></div></div><div class="form-grid"><div><label>Tipo de cobro</label><select id="invoicePayment" name="payment"><option value="transferencia">Transferencia</option><option value="recibo">Recibo</option><option value="tarjeta">Tarjeta</option><option value="efectivo">Efectivo</option></select></div><div id="invoiceAccountWrap"><label>Cuentas bancarias que aparecerán en la factura</label><div class="account-options">' + accountOptions + '</div></div></div><div class="mini-info" id="invoicePaymentHint">Las cuentas seleccionadas aparecerán en la factura como cuentas de cobro.</div><label>Notas</label><textarea name="notes" placeholder="Condiciones de pago..."></textarea><div class="form-actions"><button type="button" class="ghost" data-action="close-modal">Cancelar</button><button class="primary">Crear factura</button></div></form>';
+      openModal('Nueva factura', body, function(data) {
+        var lines = readInvoiceLines();
+        var totals = invoiceTotals(lines);
+        if (!data.get('client')) { toast('Selecciona un cliente antes de continuar'); return; }
+        if (!lines.length || !lines.some(function(line) { return line.base > 0; })) { toast('Escribe una base imponible mayor que 0 €'); var firstAmount = document.querySelector('#invoiceLines [name="lineBase"]'); if (firstAmount) firstAmount.focus(); return; }
+        var selectedIds = data.getAll('accounts');
+        var selectedAccounts = state.accounts.filter(function(a) { return selectedIds.some(function(id) { return String(a.id) === String(id); }); });
+        var accountLabels = selectedAccounts.map(function(a) { return a.name + ' · ' + a.iban; });
+        var commonIva = lines.length && lines.every(function(line) { return line.iva === lines[0].iva; }) ? lines[0].iva : null;
+        var num = nextDocumentNumber('F-2026-', state.invoices);
+        state.invoices.unshift({ id:num, client:data.get('client'), date:data.get('date'), status:'Borrador', subtotal:totals.base, total:totals.total, iva:commonIva, lines:lines, paymentMethod:data.get('payment'), paymentAccount:accountLabels.join(' · '), paymentAccounts:accountLabels, notes:data.get('notes') || '' });
+        closeModal();
+        state.view='facturas';
+        toast('Factura creada como borrador');
+        render();
+      });
+      $('invoiceLines').addEventListener('input', refreshInvoiceLineSummary);
+      $('invoiceLines').addEventListener('change', refreshInvoiceLineSummary);
+      $('invoicePayment').addEventListener('change', updatePaymentFields);
+      function updatePaymentFields() { var usesBank = $('invoicePayment').value === 'transferencia' || $('invoicePayment').value === 'recibo'; $('invoiceAccountWrap').style.display = usesBank ? 'block' : 'none'; $('invoicePaymentHint').textContent = usesBank ? 'Las cuentas seleccionadas aparecerán en la factura como cuentas de cobro.' : 'Este tipo de cobro no necesita mostrar una cuenta bancaria.'; }
+      refreshInvoiceLineSummary();
+      updatePaymentFields();
+    }
     function newClient() {
       openModal('Nuevo cliente', '<form class="form"><label>Nombre o empresa</label><input name="name" required placeholder="Ej.: María López"><div class="form-grid"><div><label>Correo electrónico</label><input name="email" type="email" required placeholder="cliente@ejemplo.com"></div><div><label>Teléfono</label><input name="phone" placeholder="600 000 000"></div></div><label>NIF/CIF</label><input name="tax" placeholder="12345678A"><label>Dirección</label><input name="address" placeholder="Calle, número, ciudad"><label>Notas</label><textarea name="notes" placeholder="Información adicional del cliente..."></textarea><div class="form-actions"><button type="button" class="ghost" data-action="close-modal">Cancelar</button><button class="primary">Guardar cliente</button></div></form>', function(data) { var name = data.get('name').trim(); if (!name) return; if (state.clients.some(function(c) { return c.name.toLowerCase() === name.toLowerCase(); })) { toast('Ya existe un cliente con ese nombre'); return; } state.clients.push({ id:Date.now(), name:name, detail:data.get('email'), phone:data.get('phone') || '', tax:data.get('tax') || 'Pendiente', address:data.get('address') || '', notes:data.get('notes') || '' }); closeModal(); toast('Cliente guardado'); render(); });
     }
@@ -935,8 +990,9 @@
       var destination = q.indexOf('fact') >= 0 ? 'facturas' : q.indexOf('presup') >= 0 ? 'presupuestos' : q.indexOf('client') >= 0 ? 'clientes' : q.indexOf('product') >= 0 || q.indexOf('servic') >= 0 ? 'productos' : q.indexOf('gasto') >= 0 ? 'gastos' : q.indexOf('cobr') >= 0 ? 'cobros' : q.indexOf('informe') >= 0 ? 'informes' : null;
       if (destination) { state.view = destination; this.value = ''; render(false); } else toast('Prueba con: facturas, clientes, productos, gastos o informes.');
     });
-    document.addEventListener('keydown', function(e) { if (e.key === 'Escape' && $('modalBackdrop').classList.contains('open')) closeModal(); });
-    $('modalBackdrop').addEventListener('click', function(e) { if (e.target === $('modalBackdrop')) closeModal(); });
+    document.addEventListener('change', function(e) { if (e.target && e.target.name === 'lineProduct') { applyInvoiceLineProduct(e.target); refreshInvoiceLineSummary(); } });
+    document.addEventListener('keydown', function(e) { if (e.key === 'Escape' && $('modalBackdrop').classList.contains('open')) { e.preventDefault(); toast('Pulsa la X o Cancelar para cerrar esta ventana'); } });
+    $('modalBackdrop').addEventListener('click', function(e) { if (e.target === $('modalBackdrop')) { e.preventDefault(); toast('Pulsa la X o Cancelar para cerrar esta ventana'); } });
     render();
   </script>
   <script type="module">
