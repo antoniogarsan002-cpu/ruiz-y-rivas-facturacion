@@ -20,7 +20,8 @@
     .login-form input { width:100%; border:1px solid #d0d5dd; border-radius:8px; padding:11px 12px; background:#fff; color:var(--ink); }
     .login-form .primary { width:100%; margin-top:18px; }
     .login-error { min-height:18px; margin:10px 0 0; color:var(--red); font-size:12px; text-align:center; }
-    .logout-button { margin-top:18px; width:100%; justify-content:center !important; color:var(--red) !important; background:var(--red-bg) !important; }
+    .logout-button { display:flex !important; flex-direction:row !important; align-items:center; gap:10px; width:calc(100% - 16px); margin:18px 8px 0; padding:10px 12px; border:0; border-radius:9px; color:var(--red); background:transparent; text-align:left; font-size:14px; }
+    .logout-button:hover { color:var(--red); background:var(--red-bg); }
     button, input, select { font:inherit; }
     button { cursor:pointer; }
     button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline:3px solid rgba(49,87,213,.22); outline-offset:2px; border-color:var(--primary); }
@@ -191,7 +192,7 @@
         <button data-view="configuracion"><span class="icon">⚙</span>Configuración</button>
       </nav>
       <div class="side-note"><strong>✓ Verifactu preparado</strong>Esta demo incluye un espacio para la configuración de facturación electrónica y numeración.</div>
-      <button class="nav logout-button" data-action="logout"><span class="icon">↪</span>Cerrar sesión</button>
+      <button class="logout-button" data-action="logout"><span class="icon">↪</span><span>Cerrar sesión</span></button>
     </aside>
     <section class="content">
       <header class="topbar">
