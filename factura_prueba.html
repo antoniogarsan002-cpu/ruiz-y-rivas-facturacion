@@ -711,6 +711,7 @@
         var invoiceForEdit = state.invoices.find(function(item) { return String(item.id) === editNumber; });
         var dueValue = invoiceForEdit && invoiceForEdit.dueDate ? invoiceForEdit.dueDate : futureDate(30);
         $('invoiceLines').closest('.invoice-lines-card').insertAdjacentHTML('beforebegin', '<div class="form-grid invoice-due-date"><div><label>Fecha de vencimiento</label><input name="dueDate" value="' + esc(dueValue) + '" placeholder="dd/mm/aaaa"></div></div>');
+        $('invoiceLines').closest('.invoice-lines-card').insertAdjacentHTML('beforebegin', '<div class="form-grid invoice-extra-fields"><div><label>Nº de expediente</label><input name="fileNumber" value="' + esc(invoiceForEdit && (invoiceForEdit.fileNumber || invoiceForEdit.expediente) || '') + '" placeholder="Opcional"></div><div><label>Expedida en</label><input name="issuedIn" value="' + esc(invoiceForEdit && invoiceForEdit.issuedIn || '') + '" placeholder="Ciudad"></div></div><div class="form-grid invoice-extra-fields"><div><label>% de retención</label><input name="retentionRate" type="number" min="0" step="0.01" value="' + esc(invoiceForEdit && (invoiceForEdit.retentionRate != null ? invoiceForEdit.retentionRate : invoiceForEdit.irpf) || '') + '" placeholder="0"></div><div><label>Nº factura rectificada</label><input name="rectifies" value="' + esc(invoiceForEdit && invoiceForEdit.rectifies || '') + '" placeholder="Opcional"></div></div><div class="form-grid invoice-extra-fields"><div><label>Provisiones (€)</label><input name="provisions" type="number" min="0" step="0.01" value="' + esc(invoiceForEdit && (invoiceForEdit.provisions != null ? invoiceForEdit.provisions : invoiceForEdit.provisiones) || '') + '" placeholder="0,00"></div><div><label>Suplidos (€)</label><input name="suplidos" type="number" min="0" step="0.01" value="' + esc(invoiceForEdit && (invoiceForEdit.suplidos != null ? invoiceForEdit.suplidos : invoiceForEdit.suplidosTotal) || '') + '" placeholder="0,00"></div></div>');
       }
       var form = $('modal').querySelector('form');
       if (form) form.addEventListener('submit', function(e) {
@@ -720,7 +721,7 @@
         onSubmit(data);
         if (invoiceDialog && data.get('dueDate')) {
           var savedInvoice = /^Nueva factura/.test(title) ? (state.invoices.length > invoiceCount ? state.invoices[0] : null) : state.invoices.find(function(item) { return String(item.id) === String(data.get('number')) || String(item.id) === editNumber; });
-          if (savedInvoice) { savedInvoice.dueDate = data.get('dueDate'); saveState(); render(false); }
+          if (savedInvoice) { savedInvoice.dueDate = data.get('dueDate'); savedInvoice.fileNumber = data.get('fileNumber') || ''; savedInvoice.issuedIn = data.get('issuedIn') || ''; savedInvoice.retentionRate = parseAmount(data.get('retentionRate')); savedInvoice.rectifies = data.get('rectifies') || ''; savedInvoice.provisions = parseAmount(data.get('provisions')); savedInvoice.suplidos = parseAmount(data.get('suplidos')); saveState(); render(false); }
         }
       });
       var firstField = $('modal').querySelector('input, select, textarea');
