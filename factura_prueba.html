@@ -47,6 +47,7 @@
     .sync-badge.online { color:var(--green); background:var(--green-bg); }
     .sync-badge.saving { color:var(--orange); background:var(--orange-bg); }
     .sync-badge.error { color:var(--red); background:var(--red-bg); }
+    .user-badge { display:inline-flex; align-items:center; border-radius:20px; padding:7px 10px; background:#f2f4f7; color:#475467; font-size:11px; font-weight:700; white-space:nowrap; }
     .search { width:190px; border:1px solid var(--line); border-radius:9px; padding:9px 11px; color:var(--muted); }
     .primary, .secondary, .ghost { border:0; border-radius:9px; padding:10px 14px; font-weight:700; font-size:13px; }
     .primary { color:white; background:var(--primary); }
@@ -194,7 +195,7 @@
     <section class="content">
       <header class="topbar">
         <div><h1 id="pageTitle">Inicio</h1><p id="pageSubtitle">Resumen de la actividad de tu negocio</p></div>
-        <div class="top-actions"><span id="syncBadge" class="sync-badge">Preparando sincronización...</span><input id="globalSearch" class="search" placeholder="Buscar..."><button class="primary" data-action="new-invoice">+ Nueva factura</button></div>
+        <div class="top-actions"><span id="currentUser" class="user-badge"></span><span id="syncBadge" class="sync-badge">Preparando sincronización...</span><input id="globalSearch" class="search" placeholder="Buscar..."><button class="primary" data-action="new-invoice">+ Nueva factura</button></div>
       </header>
       <main id="workspace" class="workspace"></main>
     </section>
@@ -203,18 +204,36 @@
   <div id="toast" class="toast"></div>
 
   <script>
-    var loginUsername = 'Crivas';
-    var loginPassword = 'Crivas2026!';
-    function hasLoginSession() {
-      try { return sessionStorage.getItem('ruiz-rivas-login') === 'ok'; } catch (e) { return false; }
+    var loginAccounts = {
+      Crivas: { username:'Crivas', name:'Carlos', password:'Crivas2026!' },
+      JRuiz: { username:'JRuiz', name:'Joaquín Ruiz Baena', password:'JRuiz2026!' },
+      KCrespo: { username:'KCrespo', name:'Francisco Javier Crespo Chacón', password:'KCrespo2026!' }
+    };
+    var activeUser = null;
+    function showActiveUser(account) {
+      var badge = document.getElementById('currentUser');
+      if (badge) badge.textContent = account ? 'Sesión: ' + account.name : '';
     }
-    function unlockApp() {
-      try { sessionStorage.setItem('ruiz-rivas-login', 'ok'); } catch (e) {}
+    function hasLoginSession() {
+      try {
+        var saved = sessionStorage.getItem('ruiz-rivas-login');
+        if (saved === 'ok') { activeUser = loginAccounts.Crivas; showActiveUser(activeUser); return true; }
+        var session = JSON.parse(saved || 'null');
+        if (session && loginAccounts[session.username]) { activeUser = loginAccounts[session.username]; showActiveUser(activeUser); return true; }
+      } catch (e) {}
+      return false;
+    }
+    function unlockApp(account) {
+      activeUser = account;
+      try { sessionStorage.setItem('ruiz-rivas-login', JSON.stringify({ username:account.username })); } catch (e) {}
       document.body.classList.add('unlocked');
+      showActiveUser(account);
     }
     function lockApp() {
       try { sessionStorage.removeItem('ruiz-rivas-login'); } catch (e) {}
       document.body.classList.remove('unlocked');
+      activeUser = null;
+      showActiveUser(null);
       var form = document.getElementById('loginForm');
       if (form) form.reset();
       var user = document.getElementById('loginUser');
@@ -226,9 +245,10 @@
       var user = document.getElementById('loginUser').value.trim();
       var password = document.getElementById('loginPassword').value;
       var error = document.getElementById('loginError');
-      if (user === loginUsername && password === loginPassword) {
+      var account = loginAccounts[user];
+      if (account && password === account.password) {
         error.textContent = '';
-        unlockApp();
+        unlockApp(account);
         return;
       }
       error.textContent = 'Usuario o contraseña incorrectos.';
