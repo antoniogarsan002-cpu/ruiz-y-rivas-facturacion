@@ -86,6 +86,7 @@
     .pending { color:var(--orange); background:var(--orange-bg); }
     .draft { color:#475467; background:#f2f4f7; }
     .rejected { color:var(--red); background:var(--red-bg); }
+    .partial { color:#6941c6; background:#f4f0ff; }
     .progress-row { margin:15px 0; }
     .progress-label { display:flex; justify-content:space-between; font-size:12px; margin-bottom:7px; }
     .progress-label span:last-child { color:var(--muted); }
@@ -342,7 +343,7 @@
       var max = items.reduce(function(highest, item) { var match = String(item.id || '').match(/(\d+)$/); return match ? Math.max(highest, Number(match[1])) : highest; }, 0);
       return prefix + String(max + 1).padStart(3, '0');
     }
-    var statusClass = function(s) { return s === 'Pagada' || s === 'Aceptado' ? 'paid' : s === 'Pendiente' || s === 'Enviada' ? 'pending' : s === 'Rechazado' ? 'rejected' : 'draft'; };
+    var statusClass = function(s) { return s === 'Pagada' || s === 'Aceptado' ? 'paid' : s === 'Parcial' ? 'partial' : s === 'Pendiente' || s === 'Enviada' ? 'pending' : s === 'Rechazado' ? 'rejected' : 'draft'; };
     var statusBadge = function(s) { return '<span class="status ' + statusClass(s) + '">' + esc(s) + '</span>'; };
     var paymentNames = { transferencia:'Transferencia', recibo:'Recibo', tarjeta:'Tarjeta', efectivo:'Efectivo' };
     var paymentLabel = function(i) { if (!i.paymentMethod) return '—'; var labels = paymentNames; var accounts = Array.isArray(i.paymentAccounts) ? i.paymentAccounts : (i.paymentAccount ? [i.paymentAccount] : []); var usesBank = i.paymentMethod === 'transferencia' || i.paymentMethod === 'recibo'; return '<strong>' + (labels[i.paymentMethod] || esc(i.paymentMethod)) + '</strong>' + (usesBank && accounts.length ? '<br><small style="color:#667085">' + accounts.map(function(a) { return esc(a); }).join('<br>') + '</small>' : ''); };
@@ -445,7 +446,7 @@
     function renderInvoices() {
       setPageMeta('Facturas', 'Crea y controla tus facturas de venta');
       $('workspace').innerHTML = '<div class="view-title"><div><h2>Tus facturas</h2><p>Numeración, IVA, estados y seguimiento de cobros.</p></div><button class="primary" data-action="new-invoice">+ Nueva factura</button></div>' +
-        '<div class="toolbar"><input id="invoiceSearch" placeholder="Buscar por cliente o número..."><select id="invoiceFilter"><option value="">Todos los estados</option><option>Pagada</option><option>Pendiente</option><option>Borrador</option></select><button class="ghost" data-action="print">Imprimir listado</button><button class="secondary" data-action="print-all-invoices">Descargar todo en PDF</button><button class="ghost" data-action="export-invoices-csv">Exportar CSV</button></div>' +
+        '<div class="toolbar"><input id="invoiceSearch" placeholder="Buscar por cliente o número..."><select id="invoiceFilter"><option value="">Todos los estados</option><option>Pagada</option><option>Parcial</option><option>Pendiente</option><option>Enviada</option><option>Borrador</option></select><button class="ghost" data-action="import" data-type="facturas">Importar CSV</button><button class="ghost" data-action="print">Imprimir listado</button><button class="secondary" data-action="print-all-invoices">Descargar todo en PDF</button><button class="ghost" data-action="export-invoices-csv">Exportar CSV</button></div>' +
         '<div class="card list-card">' + invoiceTable(state.invoices, true) + '</div>' +
         '<div class="feature-grid" style="margin-top:18px">' + feature('↻','Facturas recurrentes','Genera facturas mensuales automáticamente.') + feature('↩','Rectificativas','Corrige devoluciones o errores.') + feature('✉','Recordatorios','Avisa de pagos pendientes.') + '</div>';
       $('invoiceSearch').addEventListener('input', filterInvoices);
@@ -540,7 +541,7 @@
       var expenseHint = state.expenses.length ? 'Los indicadores se calculan con los gastos registrados. Puedes editar cada gasto y su IVA desde la tabla.' : 'Todavía no tienes gastos registrados. Pulsa «+ Nuevo gasto» para añadir el primero.';
       $('workspace').innerHTML = '<div class="view-title"><div><h2>Gastos</h2><p>Controla lo que pagas y cuánto te cuesta el negocio.</p></div><button class="primary" data-action="new-expense">+ Nuevo gasto</button></div>' +
         '<div class="cards">' + metric('Gastos registrados', euro(total), state.expenses.length + ' registros', '↓') + metric('Tickets pendientes', pendingTickets, pendingTickets ? 'De revisar' : 'Sin revisar', '▤') + metric('IVA soportado', euro(vatSupported), state.expenses.length ? 'Calculado según IVA' : 'Sin datos', '€') + metric('Proveedores', suppliers, suppliers ? 'Activos' : 'Sin proveedores', '♙') + '</div>' +
-        '<div class="toolbar"><input id="expenseSearch" placeholder="Buscar proveedor o categoría..."><button class="secondary" data-action="print-all-expenses">Descargar gastos en PDF</button><button class="ghost" data-action="export-expenses-csv">Exportar CSV</button></div><div class="card list-card">' + expenseTable(state.expenses) + '</div>' +
+        '<div class="toolbar"><input id="expenseSearch" placeholder="Buscar proveedor o categoría..."><button class="ghost" data-action="import" data-type="gastos">Importar CSV</button><button class="secondary" data-action="print-all-expenses">Descargar gastos en PDF</button><button class="ghost" data-action="export-expenses-csv">Exportar CSV</button></div><div class="card list-card">' + expenseTable(state.expenses) + '</div>' +
         '<div class="mini-info">' + expenseHint + '</div>';
       $('expenseSearch').addEventListener('input', filterExpenses);
     }
@@ -1064,19 +1065,46 @@
       var rows = pending.length ? pending.map(function(i) { return '<tr><td>' + esc(i.client) + '</td><td>' + esc(i.id) + '</td><td>' + esc(i.dueDate || 'Sin vencimiento') + '</td><td class="amount">' + euro(i.total) + '</td></tr>'; }).join('') : '<tr><td colspan="4">No hay facturas pendientes.</td></tr>';
       openModal('Recordatorios de pago', '<form class="form"><div class="mini-info">Aquí puedes revisar los clientes pendientes. El envío automático por Outlook se activará en la última fase.</div><div style="overflow:auto;margin-top:14px"><table><thead><tr><th>Cliente</th><th>Factura</th><th>Vencimiento</th><th class="amount">Importe</th></tr></thead><tbody>' + rows + '</tbody></table></div><div class="form-actions"><button type="button" class="ghost" data-action="close-modal">Cerrar</button><button type="button" class="secondary" data-action="export-invoices-csv">Exportar pendientes</button></div></form>', function() { closeModal(); });
     }
+    function invoicePaidAmount(invoice) { if (Array.isArray(invoice.payments) && invoice.payments.length) return invoice.payments.reduce(function(sum, payment) { return sum + parseAmount(payment.amount); }, 0); return invoice.status === 'Pagada' ? parseAmount(invoice.total) : parseAmount(invoice.paidAmount); }
+    function invoicePaymentStatus(invoice) { var paid = invoicePaidAmount(invoice); var total = parseAmount(invoice.total); if (total > 0 && paid >= total) return 'Pagada'; if (paid > 0) return 'Parcial'; return invoice.status || 'Borrador'; }
+    function recordPayment(id) {
+      var invoice = state.invoices.find(function(i) { return String(i.id) === String(id); });
+      if (!invoice) return;
+      var remaining = Math.max(0, parseAmount(invoice.total) - invoicePaidAmount(invoice));
+      if (!remaining) { toast('Esta factura ya está completamente cobrada'); return; }
+      openModal('Registrar cobro · ' + esc(invoice.id), '<form class="form"><div class="mini-info"><strong>' + esc(invoice.client) + '</strong><br>Total: ' + euro(invoice.total) + '<br>Pendiente: ' + euro(remaining) + '</div><div class="form-grid"><div><label>Importe cobrado (€)</label><input name="amount" type="number" min="0.01" max="' + remaining.toFixed(2) + '" step="0.01" value="' + remaining.toFixed(2) + '" required></div><div><label>Fecha del cobro</label><input name="date" value="' + today() + '" required></div></div><div class="form-grid"><div><label>Método</label><select name="method"><option value="transferencia">Transferencia</option><option value="recibo">Recibo</option><option value="tarjeta">Tarjeta</option><option value="efectivo">Efectivo</option></select></div><div><label>Referencia</label><input name="reference" placeholder="Número de operación o nota"></div></div><div class="form-actions"><button type="button" class="ghost" data-action="close-modal">Cancelar</button><button class="primary">Guardar cobro</button></div></form>', function(data) {
+        var amount = parseAmount(data.get('amount'));
+        if (!amount || amount > remaining + 0.001) { toast('El importe debe estar entre 0 y ' + euro(remaining)); return; }
+        if (!Array.isArray(invoice.payments)) invoice.payments = [];
+        invoice.payments.push({ id:Date.now(), amount:amount, date:data.get('date'), method:data.get('method'), reference:data.get('reference') || '', user:activeUser ? activeUser.name : 'Sistema' });
+        invoice.paidAmount = invoicePaidAmount(invoice);
+        invoice.paymentDate = data.get('date');
+        invoice.paymentMethod = data.get('method');
+        invoice.status = invoicePaymentStatus(invoice);
+        recordActivity('Cobro registrado','Factura',invoice.id,euro(amount) + ' · ' + invoice.status);
+        closeModal(); toast(invoice.status === 'Pagada' ? 'Factura cobrada completamente' : 'Cobro parcial registrado'); render();
+      });
+    }
+    function invoiceTable(items, actions) {
+      if (!items.length) return '<div class="empty">No hay facturas.</div>';
+      return '<div class="table-wrap"><table><thead><tr><th>Número</th><th>Cliente</th><th>Fecha</th><th>Vencimiento</th><th>Estado</th><th>Cobro</th><th class="amount">Total</th>' + (actions ? '<th></th>' : '') + '</tr></thead><tbody>' + items.map(function(i) { var displayStatus = invoicePaymentStatus(i); var overdue = displayStatus !== 'Pagada' && displayStatus !== 'Borrador' && i.dueDate && dateValue(i.dueDate) < dateValue(today()); var paid = invoicePaidAmount(i); var collect = displayStatus !== 'Pagada' && displayStatus !== 'Borrador' ? '<button class="secondary" data-action="record-payment" data-id="' + esc(i.id) + '">Registrar cobro</button>' : ''; return '<tr><td><strong>' + esc(i.id) + '</strong></td><td>' + esc(i.client) + '</td><td>' + esc(i.date) + '</td><td>' + esc(i.dueDate || '—') + (overdue ? '<br><span class="status rejected">Vencida</span>' : '') + '</td><td>' + statusBadge(displayStatus) + (displayStatus === 'Parcial' ? '<br><small style="color:#667085">Pagado: ' + euro(paid) + '</small>' : '') + '</td><td>' + paymentLabel(i) + '</td><td class="amount">' + euro(i.total) + '</td>' + (actions ? '<td><div class="row-actions">' + collect + '<button class="ghost" data-action="edit-invoice" data-id="' + esc(i.id) + '">Editar</button><button class="secondary" data-action="duplicate-invoice" data-id="' + esc(i.id) + '">Duplicar</button><button class="danger" data-action="delete-invoice" data-id="' + esc(i.id) + '">Borrar</button><button class="secondary print-invoice" data-action="print-invoice" data-id="' + esc(i.id) + '">PDF</button></div></td>' : '') + '</tr>'; }).join('') + '</tbody></table></div>';
+    }
+    function paymentTable(items) { return invoiceTable(items, true); }
     function renderPayments() {
       setPageMeta('Cobros', 'Consulta el historial y controla lo que te deben');
-      var pending = state.invoices.filter(function(i) { return i.status === 'Pendiente' || i.status === 'Enviada'; });
-      var paid = state.invoices.filter(function(i) { return i.status === 'Pagada'; });
-      var drafts = state.invoices.filter(function(i) { return i.status === 'Borrador'; });
+      var pending = state.invoices.filter(function(i) { var status = invoicePaymentStatus(i); return status !== 'Pagada' && status !== 'Borrador'; });
+      var paid = state.invoices.filter(function(i) { return invoicePaymentStatus(i) === 'Pagada'; });
+      var drafts = state.invoices.filter(function(i) { return invoicePaymentStatus(i) === 'Borrador'; });
       var pendingTotal = pending.reduce(function(a,i) { return a + Number(i.total || 0); }, 0);
       var paidTotal = paid.reduce(function(a,i) { return a + Number(i.total || 0); }, 0);
       var overdue = pending.filter(function(i) { return i.dueDate && dateValue(i.dueDate) < dateValue(today()); }).length;
       $('workspace').innerHTML = '<div class="view-title"><div><h2>Cobros</h2><p>Historial de facturas cobradas, pendientes y en borrador.</p></div><button class="secondary" data-action="reminders">Revisar recordatorios</button></div>' +
         '<div class="cards">' + metric('Por cobrar', euro(pendingTotal), pending.length + ' facturas pendientes', '◷') + metric('Cobrado', euro(paidTotal), paid.length + ' facturas pagadas', '✓') + metric('Borradores', drafts.length, drafts.length + ' por completar', '♡') + metric('Vencidas', overdue, overdue ? 'Requieren atención' : 'Sin vencimientos', '⚠') + '</div>' +
         '<div class="card list-card"><div class="card-head"><div><h3 style="margin:0">Facturas pendientes</h3><span style="color:#667085;font-size:12px">Solo aparecen las que todavía no están cobradas.</span></div><span class="status ' + (pending.length ? 'pending' : 'paid') + '">' + (pending.length ? 'Requieren atención' : 'Todo al día') + '</span></div>' + paymentTable(pending) + '</div>' +
-        '<div class="card" style="margin-top:18px"><div class="card-head"><div><h3 style="margin:0">Historial de facturas</h3><span style="color:#667085;font-size:12px">Consulta todos los estados en un solo sitio.</span></div><div class="toolbar" style="margin:0"><select id="paymentHistoryFilter"><option value="">Todos los estados</option><option value="Pagada">Cobradas</option><option value="Pendiente">Pendientes</option><option value="Enviada">Enviadas</option><option value="Borrador">Borradores</option></select><button class="ghost" data-action="print-all-payments">Descargar PDF</button><button class="ghost" data-action="export-invoices-csv">Exportar CSV</button></div></div><div id="paymentHistoryList">' + invoiceTable(state.invoices, true) + '</div></div>';
-      $('paymentHistoryFilter').addEventListener('change', function() { var filter = this.value; $('paymentHistoryList').innerHTML = invoiceTable(state.invoices.filter(function(i) { return !filter || i.status === filter; }), true); });
+        '<div class="card" style="margin-top:18px"><div class="card-head"><div><h3 style="margin:0">Historial de facturas</h3><span style="color:#667085;font-size:12px">Consulta todos los estados y registra pagos.</span></div><div class="toolbar" style="margin:0"><input id="paymentHistorySearch" placeholder="Buscar cliente o número..."><select id="paymentHistoryFilter"><option value="">Todos los estados</option><option value="Pagada">Cobradas</option><option value="Parcial">Parciales</option><option value="Pendiente">Pendientes</option><option value="Enviada">Enviadas</option><option value="Borrador">Borradores</option></select><button class="ghost" data-action="print-all-payments">Descargar PDF</button><button class="ghost" data-action="export-invoices-csv">Exportar CSV</button></div></div><div id="paymentHistoryList">' + invoiceTable(state.invoices, true) + '</div></div>';
+      function paintHistory() { var q = $('paymentHistorySearch').value.toLowerCase().trim(); var filter = $('paymentHistoryFilter').value; $('paymentHistoryList').innerHTML = invoiceTable(state.invoices.filter(function(i) { var status = invoicePaymentStatus(i); return (!filter || status === filter) && (!q || (i.client + ' ' + i.id).toLowerCase().indexOf(q) >= 0); }), true); }
+      $('paymentHistoryFilter').addEventListener('change', paintHistory);
+      $('paymentHistorySearch').addEventListener('input', paintHistory);
     }
     function csvRows(text) {
       var lines = String(text || '').replace(/^\ufeff/, '').split(/\r?\n/).filter(function(line) { return line.trim(); });
@@ -1101,6 +1129,39 @@
             } else {
               var productName = row[0] || ''; if (!productName || state.products.some(function(p) { return p.name.toLowerCase() === productName.toLowerCase(); })) return;
               var productId = Date.now() + imported; state.products.push({ id:productId, name:productName, code:row[1] || 'SIN-CÓDIGO', price:parseAmount(row[2]), kind:row[3] || 'Servicio', vat:parseAmount(row[4]) || Number(state.settings.defaultVat) }); recordActivity('Importado','Producto',productId,productName);
+            }
+            imported += 1;
+          });
+          closeModal(); toast(imported + ' ' + title + ' importados'); render();
+        }).catch(function() { toast('No se pudo leer el archivo CSV'); });
+      });
+    }
+    function openCsvImport(type) {
+      var isClients = type === 'clientes';
+      var isProducts = type === 'productos';
+      var isInvoices = type === 'facturas';
+      var isExpenses = type === 'gastos';
+      var title = isClients ? 'clientes' : isProducts ? 'productos' : isInvoices ? 'facturas' : 'gastos';
+      var example = isClients ? 'Nombre;Correo;Teléfono;NIF/CIF;Dirección' : isProducts ? 'Nombre;Código;Precio sin IVA;Tipo;IVA' : isInvoices ? 'Número;Cliente;Fecha;Vencimiento;Total;Estado;IVA' : 'Número;Proveedor;Categoría;Fecha;IVA;Total';
+      openModal('Importar ' + title, '<form class="form"><p style="margin:4px 0 0;color:#475467;line-height:1.5">Selecciona un archivo CSV. La primera fila puede contener los nombres de las columnas.</p><div class="mini-info">Formato recomendado:<br><strong>' + example + '</strong></div><label>Archivo CSV</label><input id="csvImportFile" type="file" accept=".csv,text/csv" required><div class="form-actions"><button type="button" class="ghost" data-action="close-modal">Cancelar</button><button class="primary">Importar datos</button></div></form>', function() {
+        var file = $('csvImportFile') && $('csvImportFile').files[0];
+        if (!file) { toast('Selecciona un archivo CSV'); return; }
+        file.text().then(function(text) {
+          var rows = csvRows(text); if (rows.length && /nombre|name|cliente|proveedor|número/i.test(rows[0][0])) rows.shift();
+          var imported = 0;
+          rows.forEach(function(row) {
+            if (isClients) {
+              var name = row[0] || ''; if (!name || state.clients.some(function(c) { return c.name.toLowerCase() === name.toLowerCase(); })) return;
+              var id = Date.now() + imported; state.clients.push({ id:id, name:name, detail:row[1] || '', phone:row[2] || '', tax:row[3] || 'Pendiente', address:row[4] || '', notes:'' }); recordActivity('Importado','Cliente',id,name);
+            } else if (isProducts) {
+              var productName = row[0] || ''; if (!productName || state.products.some(function(p) { return p.name.toLowerCase() === productName.toLowerCase(); })) return;
+              var productId = Date.now() + imported; state.products.push({ id:productId, name:productName, code:row[1] || 'SIN-CÓDIGO', price:parseAmount(row[2]), kind:row[3] || 'Servicio', vat:parseAmount(row[4]) || Number(state.settings.defaultVat) }); recordActivity('Importado','Producto',productId,productName);
+            } else if (isInvoices) {
+              var invoiceId = row[0] || nextDocumentNumber('F-2026-', state.invoices); if (state.invoices.some(function(i) { return String(i.id) === String(invoiceId); })) return;
+              var total = parseAmount(row[4]); var rate = parseAmount(row[6]) || Number(state.settings.defaultVat); var invoiceStatus = ['Pagada','Parcial','Pendiente','Enviada','Borrador'].indexOf(row[5]) >= 0 ? row[5] : 'Pendiente'; state.invoices.unshift({ id:invoiceId, client:row[1] || 'Cliente importado', date:row[2] || today(), dueDate:row[3] || '', status:invoiceStatus, subtotal:Number((total / (1 + rate / 100)).toFixed(2)), total:total, iva:rate, lines:[{ productId:'', description:'Factura importada', base:Number((total / (1 + rate / 100)).toFixed(2)), iva:rate }] }); recordActivity('Importada','Factura',invoiceId,row[1] || 'Cliente importado');
+            } else if (isExpenses) {
+              var expenseId = row[0] || nextDocumentNumber('G-', state.expenses); if (state.expenses.some(function(e) { return String(e.id) === String(expenseId); })) return;
+              state.expenses.unshift({ id:expenseId, supplier:row[1] || 'Proveedor importado', category:row[2] || 'Otros', date:row[3] || today(), vat:parseAmount(row[4]) || 0, total:parseAmount(row[5]) }); recordActivity('Importado','Gasto',expenseId,row[1] || 'Proveedor importado');
             }
             imported += 1;
           });
@@ -1180,6 +1241,7 @@
       if (a === 'export-expenses-csv') exportExpensesCsv();
       if (a === 'export-activity-csv') exportActivityCsv();
       if (a === 'duplicate-invoice') duplicateInvoice(action.dataset.id);
+      if (a === 'record-payment') recordPayment(action.dataset.id);
       if (a === 'backup-import' && $('backupFile')) $('backupFile').click();
       if (a === 'add-invoice-line') addInvoiceLine();
       if (a === 'remove-invoice-line') removeInvoiceLine(action);
