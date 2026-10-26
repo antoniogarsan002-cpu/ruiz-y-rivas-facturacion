@@ -300,10 +300,10 @@
       document.querySelectorAll('[data-view]').forEach(function(b) { b.classList.toggle('active', b.dataset.view === state.view); });
     }
 
-    function render() {
+    function render(persist) {
       var views = { inicio:renderHome, facturas:renderInvoices, presupuestos:renderQuotes, clientes:renderClients, productos:renderProducts, gastos:renderExpenses, cobros:renderPayments, informes:renderReports, configuracion:renderSettings };
       (views[state.view] || renderHome)();
-      saveState();
+      if (persist !== false) saveState();
     }
 
     function renderHome() {
@@ -522,13 +522,13 @@
       state.settings.email = form.elements.email.value.trim();
       saveState();
       toast('Datos de empresa guardados');
-      render();
+      render(false);
     }
     function editDefaultVat() {
-      openModal('IVA por defecto', '<form class="form"><label>Tipo de IVA para nuevas líneas</label><select name="vat">' + vatOptions(state.settings.defaultVat) + '</select><div class="form-actions"><button type="button" class="ghost" data-action="close-modal">Cancelar</button><button class="primary">Guardar IVA</button></div></form>', function(data) { state.settings.defaultVat = Number(data.get('vat')); saveState(); closeModal(); toast('IVA por defecto actualizado'); render(); });
+      openModal('IVA por defecto', '<form class="form"><label>Tipo de IVA para nuevas líneas</label><select name="vat">' + vatOptions(state.settings.defaultVat) + '</select><div class="form-actions"><button type="button" class="ghost" data-action="close-modal">Cancelar</button><button class="primary">Guardar IVA</button></div></form>', function(data) { state.settings.defaultVat = Number(data.get('vat')); saveState(); closeModal(); toast('IVA por defecto actualizado'); render(false); });
     }
     function customizeTemplate() {
-      openModal('Plantilla de factura', '<form class="form"><label>Diseño de los documentos</label><select name="template"><option' + (state.settings.template === 'Moderna azul' ? ' selected' : '') + '>Moderna azul</option><option' + (state.settings.template === 'Clásica' ? ' selected' : '') + '>Clásica</option><option' + (state.settings.template === 'Minimalista' ? ' selected' : '') + '>Minimalista</option></select><div class="mini-info">La plantilla elegida se guardará para tus próximos documentos PDF.</div><div class="form-actions"><button type="button" class="ghost" data-action="close-modal">Cancelar</button><button class="primary">Guardar plantilla</button></div></form>', function(data) { state.settings.template = data.get('template'); saveState(); closeModal(); toast('Plantilla guardada'); render(); });
+      openModal('Plantilla de factura', '<form class="form"><label>Diseño de los documentos</label><select name="template"><option' + (state.settings.template === 'Moderna azul' ? ' selected' : '') + '>Moderna azul</option><option' + (state.settings.template === 'Clásica' ? ' selected' : '') + '>Clásica</option><option' + (state.settings.template === 'Minimalista' ? ' selected' : '') + '>Minimalista</option></select><div class="mini-info">La plantilla elegida se guardará para tus próximos documentos PDF.</div><div class="form-actions"><button type="button" class="ghost" data-action="close-modal">Cancelar</button><button class="primary">Guardar plantilla</button></div></form>', function(data) { state.settings.template = data.get('template'); saveState(); closeModal(); toast('Plantilla guardada'); render(false); });
     }
     function showVerifactu() {
       openModal('Verifactu', '<form class="form"><div class="mini-info"><strong>Preparado para facturación electrónica</strong><br>Esta demo deja preparado el espacio para numeración, datos fiscales y documentos. La conexión real con un servicio de facturación requiere una cuenta y configuración adicional.</div><div class="form-actions"><button type="button" class="primary" data-action="close-modal">Entendido</button></div></form>', function() { closeModal(); });
@@ -588,7 +588,7 @@
       var form = $('modal').querySelector('form');
       if (form) form.addEventListener('submit', function(e) { e.preventDefault(); onSubmit(new FormData(e.target)); });
       var firstField = $('modal').querySelector('input, select, textarea');
-      if (firstField) setTimeout(function() { firstField.focus(); }, 30);
+      if (firstField) firstField.focus();
     }
     function closeModal() { $('modalBackdrop').classList.remove('open'); }
     function newInvoice() {
@@ -741,7 +741,7 @@
       popup.document.open();
       popup.document.write('<!doctype html><html lang="es"><head><meta charset="utf-8"><title>' + esc(title) + '</title><style>@page{size:A4;margin:16mm}*{box-sizing:border-box}body{font-family:Arial,Helvetica,sans-serif;color:#172033;margin:0;background:#fff;font-size:12px}.invoice-paper{page-break-after:always;padding-bottom:8mm}.invoice-paper:last-child{page-break-after:auto}.print-head{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #3157d5;padding-bottom:14px;margin-bottom:18px}.print-head img{width:120px;height:68px;object-fit:contain;object-position:left center;display:block}.print-head h1{font-size:14px;margin:3px 0 0;color:#3157d5}.print-title{text-align:right;display:flex;flex-direction:column;gap:5px;font-size:15px}.print-title strong{font-size:24px;letter-spacing:.08em;color:#3157d5}.print-meta{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:22px}.print-meta div{border:1px solid #e5e7eb;border-radius:8px;padding:9px}.print-meta strong,.print-notes strong{display:block;color:#667085;font-size:10px;text-transform:uppercase;margin-bottom:4px}.print-meta span{display:block;font-size:12px}.print-lines{width:100%;border-collapse:collapse;margin-bottom:20px}.print-lines th{background:#f1f4ff;color:#3157d5;text-align:left;font-size:10px;text-transform:uppercase;padding:9px 7px;border-bottom:1px solid #dce3ff}.print-lines td{padding:10px 7px;border-bottom:1px solid #e5e7eb}.num{text-align:right}.print-bottom{display:grid;grid-template-columns:1.3fr .7fr;gap:30px}.print-notes{display:grid;gap:5px;align-content:start}.print-notes strong:nth-of-type(2){margin-top:13px}.print-totals{border:1px solid #e5e7eb;border-radius:8px;padding:12px}.print-totals>div{display:flex;justify-content:space-between;gap:12px;padding:5px 0}.print-tax-summary{display:block!important;font-size:11px;color:#667085;border-top:1px solid #e5e7eb;border-bottom:1px solid #e5e7eb;margin:5px 0}.print-tax-summary div{display:flex;justify-content:space-between;padding:3px 0}.print-totals .grand{font-size:16px;color:#3157d5;padding-top:10px}@media print{.invoice-paper{break-after:page}.invoice-paper:last-child{break-after:auto}}</style></head><body>' + body + '</body></html>');
       popup.document.close();
-      setTimeout(function() { popup.focus(); popup.print(); }, 450);
+      setTimeout(function() { popup.focus(); popup.print(); }, 180);
     }
     function printInvoice(id) {
       var invoice = state.invoices.find(function(i) { return String(i.id) === String(id); });
@@ -809,9 +809,9 @@
 
     document.addEventListener('click', function(e) {
       var view = e.target.closest('[data-view]');
-      if (view) { state.view = view.dataset.view; render(); return; }
+      if (view) { state.view = view.dataset.view; render(false); return; }
       var viewLink = e.target.closest('[data-view-link]');
-      if (viewLink) { state.view = viewLink.dataset.viewLink; render(); return; }
+      if (viewLink) { state.view = viewLink.dataset.viewLink; render(false); return; }
       var action = e.target.closest('[data-action]');
       if (!action) return;
       var a = action.dataset.action;
@@ -844,7 +844,7 @@
       if (a === 'report-detail') openReport(action.dataset.report);
       if (a === 'print-report') { closeModal(); printReport(action.dataset.report); }
       if (a === 'print-report-summary') printReportSummary();
-      if (a === 'toggle-setting') { state.settings[action.dataset.setting] = !state.settings[action.dataset.setting]; saveState(); render(); toast('Opción actualizada'); }
+      if (a === 'toggle-setting') { state.settings[action.dataset.setting] = !state.settings[action.dataset.setting]; saveState(); render(false); toast('Opción actualizada'); }
       if (a === 'edit-default-vat') editDefaultVat();
       if (a === 'customize-template') customizeTemplate();
       if (a === 'show-verifactu') showVerifactu();
@@ -870,7 +870,7 @@
       var q = this.value.toLowerCase().trim();
       if (!q) return;
       var destination = q.indexOf('fact') >= 0 ? 'facturas' : q.indexOf('presup') >= 0 ? 'presupuestos' : q.indexOf('client') >= 0 ? 'clientes' : q.indexOf('product') >= 0 || q.indexOf('servic') >= 0 ? 'productos' : q.indexOf('gasto') >= 0 ? 'gastos' : q.indexOf('cobr') >= 0 ? 'cobros' : q.indexOf('informe') >= 0 ? 'informes' : null;
-      if (destination) { state.view = destination; this.value = ''; render(); } else toast('Prueba con: facturas, clientes, productos, gastos o informes.');
+      if (destination) { state.view = destination; this.value = ''; render(false); } else toast('Prueba con: facturas, clientes, productos, gastos o informes.');
     });
     document.addEventListener('keydown', function(e) { if (e.key === 'Escape' && $('modalBackdrop').classList.contains('open')) closeModal(); });
     $('modalBackdrop').addEventListener('click', function(e) { if (e.target === $('modalBackdrop')) closeModal(); });
@@ -976,7 +976,7 @@
       window.state.settings = Object.assign({}, window.state.settings, remote.settings || {});
       sharedReady = true;
       setSyncStatus('online', 'Sincronizado');
-      try { window.render(); } finally { window.suppressSharedSave = previousSuppress; }
+      try { window.render(false); } finally { window.suppressSharedSave = previousSuppress; }
     }, function(error) {
       console.error('Error leyendo Firebase:', error);
       sharedReady = true;
