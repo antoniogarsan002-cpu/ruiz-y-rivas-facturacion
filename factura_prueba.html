@@ -1064,6 +1064,20 @@
       var rows = pending.length ? pending.map(function(i) { return '<tr><td>' + esc(i.client) + '</td><td>' + esc(i.id) + '</td><td>' + esc(i.dueDate || 'Sin vencimiento') + '</td><td class="amount">' + euro(i.total) + '</td></tr>'; }).join('') : '<tr><td colspan="4">No hay facturas pendientes.</td></tr>';
       openModal('Recordatorios de pago', '<form class="form"><div class="mini-info">Aquí puedes revisar los clientes pendientes. El envío automático por Outlook se activará en la última fase.</div><div style="overflow:auto;margin-top:14px"><table><thead><tr><th>Cliente</th><th>Factura</th><th>Vencimiento</th><th class="amount">Importe</th></tr></thead><tbody>' + rows + '</tbody></table></div><div class="form-actions"><button type="button" class="ghost" data-action="close-modal">Cerrar</button><button type="button" class="secondary" data-action="export-invoices-csv">Exportar pendientes</button></div></form>', function() { closeModal(); });
     }
+    function renderPayments() {
+      setPageMeta('Cobros', 'Consulta el historial y controla lo que te deben');
+      var pending = state.invoices.filter(function(i) { return i.status === 'Pendiente' || i.status === 'Enviada'; });
+      var paid = state.invoices.filter(function(i) { return i.status === 'Pagada'; });
+      var drafts = state.invoices.filter(function(i) { return i.status === 'Borrador'; });
+      var pendingTotal = pending.reduce(function(a,i) { return a + Number(i.total || 0); }, 0);
+      var paidTotal = paid.reduce(function(a,i) { return a + Number(i.total || 0); }, 0);
+      var overdue = pending.filter(function(i) { return i.dueDate && dateValue(i.dueDate) < dateValue(today()); }).length;
+      $('workspace').innerHTML = '<div class="view-title"><div><h2>Cobros</h2><p>Historial de facturas cobradas, pendientes y en borrador.</p></div><button class="secondary" data-action="reminders">Revisar recordatorios</button></div>' +
+        '<div class="cards">' + metric('Por cobrar', euro(pendingTotal), pending.length + ' facturas pendientes', '◷') + metric('Cobrado', euro(paidTotal), paid.length + ' facturas pagadas', '✓') + metric('Borradores', drafts.length, drafts.length + ' por completar', '♡') + metric('Vencidas', overdue, overdue ? 'Requieren atención' : 'Sin vencimientos', '⚠') + '</div>' +
+        '<div class="card list-card"><div class="card-head"><div><h3 style="margin:0">Facturas pendientes</h3><span style="color:#667085;font-size:12px">Solo aparecen las que todavía no están cobradas.</span></div><span class="status ' + (pending.length ? 'pending' : 'paid') + '">' + (pending.length ? 'Requieren atención' : 'Todo al día') + '</span></div>' + paymentTable(pending) + '</div>' +
+        '<div class="card" style="margin-top:18px"><div class="card-head"><div><h3 style="margin:0">Historial de facturas</h3><span style="color:#667085;font-size:12px">Consulta todos los estados en un solo sitio.</span></div><div class="toolbar" style="margin:0"><select id="paymentHistoryFilter"><option value="">Todos los estados</option><option value="Pagada">Cobradas</option><option value="Pendiente">Pendientes</option><option value="Enviada">Enviadas</option><option value="Borrador">Borradores</option></select><button class="ghost" data-action="print-all-payments">Descargar PDF</button><button class="ghost" data-action="export-invoices-csv">Exportar CSV</button></div></div><div id="paymentHistoryList">' + invoiceTable(state.invoices, true) + '</div></div>';
+      $('paymentHistoryFilter').addEventListener('change', function() { var filter = this.value; $('paymentHistoryList').innerHTML = invoiceTable(state.invoices.filter(function(i) { return !filter || i.status === filter; }), true); });
+    }
     function csvRows(text) {
       var lines = String(text || '').replace(/^\ufeff/, '').split(/\r?\n/).filter(function(line) { return line.trim(); });
       if (!lines.length) return [];
