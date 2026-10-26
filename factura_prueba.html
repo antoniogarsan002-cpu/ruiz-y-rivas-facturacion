@@ -8,6 +8,19 @@
     :root { --primary:#3157d5; --primary-dark:#2443ac; --soft:#eef2ff; --ink:#172033; --muted:#667085; --line:#e5e7eb; --bg:#f6f8fc; --green:#16803c; --green-bg:#e9f8ee; --orange:#b54708; --orange-bg:#fff3e8; --red:#b42318; --red-bg:#fff0ee; }
     * { box-sizing:border-box; }
     body { margin:0; font-family:Arial,Helvetica,sans-serif; color:var(--ink); background:var(--bg); }
+    body:not(.unlocked) .app { display:none; }
+    .login-screen { min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; background:linear-gradient(135deg,#eef2ff 0%,#f8fafc 55%,#eaf8ef 100%); }
+    body.unlocked .login-screen { display:none; }
+    .login-card { width:min(420px,100%); background:#fff; border:1px solid var(--line); border-radius:18px; padding:30px; box-shadow:0 20px 55px rgba(16,24,40,.14); }
+    .login-brand { display:flex; flex-direction:column; align-items:center; text-align:center; margin-bottom:20px; }
+    .login-brand img { width:190px; height:100px; object-fit:contain; }
+    .login-brand h1 { margin:10px 0 5px; font-size:22px; }
+    .login-brand p { margin:0; color:var(--muted); font-size:13px; }
+    .login-form label { display:block; font-size:12px; font-weight:700; margin:13px 0 5px; }
+    .login-form input { width:100%; border:1px solid #d0d5dd; border-radius:8px; padding:11px 12px; background:#fff; color:var(--ink); }
+    .login-form .primary { width:100%; margin-top:18px; }
+    .login-error { min-height:18px; margin:10px 0 0; color:var(--red); font-size:12px; text-align:center; }
+    .logout-button { margin-top:18px; width:100%; justify-content:center !important; color:var(--red) !important; background:var(--red-bg) !important; }
     button, input, select { font:inherit; }
     button { cursor:pointer; }
     button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline:3px solid rgba(49,87,213,.22); outline-offset:2px; border-color:var(--primary); }
@@ -137,6 +150,23 @@
   </style>
 </head>
 <body>
+  <section id="loginScreen" class="login-screen" aria-label="Acceso a la aplicación">
+    <div class="login-card">
+      <div class="login-brand">
+        <img src="logo_ruiz_rivas.png" alt="Ruiz y Rivas Consultores">
+        <h1>Acceso privado</h1>
+        <p>Introduce tus datos para entrar al panel de gestión.</p>
+      </div>
+      <form id="loginForm" class="login-form">
+        <label for="loginUser">Usuario</label>
+        <input id="loginUser" name="username" autocomplete="username" required autofocus>
+        <label for="loginPassword">Contraseña</label>
+        <input id="loginPassword" name="password" type="password" autocomplete="current-password" required>
+        <p id="loginError" class="login-error" aria-live="polite"></p>
+        <button class="primary" type="submit">Entrar</button>
+      </form>
+    </div>
+  </section>
   <div class="app">
     <aside class="sidebar">
       <div class="brand">
@@ -159,6 +189,7 @@
         <button data-view="configuracion"><span class="icon">⚙</span>Configuración</button>
       </nav>
       <div class="side-note"><strong>✓ Verifactu preparado</strong>Esta demo incluye un espacio para la configuración de facturación electrónica y numeración.</div>
+      <button class="nav logout-button" data-action="logout"><span class="icon">↪</span>Cerrar sesión</button>
     </aside>
     <section class="content">
       <header class="topbar">
@@ -172,6 +203,38 @@
   <div id="toast" class="toast"></div>
 
   <script>
+    var loginUsername = 'Crivas';
+    var loginPassword = 'Crivas2026!';
+    function hasLoginSession() {
+      try { return sessionStorage.getItem('ruiz-rivas-login') === 'ok'; } catch (e) { return false; }
+    }
+    function unlockApp() {
+      try { sessionStorage.setItem('ruiz-rivas-login', 'ok'); } catch (e) {}
+      document.body.classList.add('unlocked');
+    }
+    function lockApp() {
+      try { sessionStorage.removeItem('ruiz-rivas-login'); } catch (e) {}
+      document.body.classList.remove('unlocked');
+      var form = document.getElementById('loginForm');
+      if (form) form.reset();
+      var user = document.getElementById('loginUser');
+      if (user) user.focus();
+    }
+    if (hasLoginSession()) document.body.classList.add('unlocked');
+    document.getElementById('loginForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      var user = document.getElementById('loginUser').value.trim();
+      var password = document.getElementById('loginPassword').value;
+      var error = document.getElementById('loginError');
+      if (user === loginUsername && password === loginPassword) {
+        error.textContent = '';
+        unlockApp();
+        return;
+      }
+      error.textContent = 'Usuario o contraseña incorrectos.';
+      document.getElementById('loginPassword').value = '';
+      document.getElementById('loginPassword').focus();
+    });
     var state = {
       view: 'inicio',
       clients: [
@@ -933,6 +996,7 @@
       var action = e.target.closest('[data-action]');
       if (!action) return;
       var a = action.dataset.action;
+      if (a === 'logout') { lockApp(); return; }
       if (a === 'new-invoice') newInvoice();
       if (a === 'new-client') newClient();
       if (a === 'new-product') newProduct();
