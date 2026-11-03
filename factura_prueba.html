@@ -158,15 +158,16 @@
       <div class="login-brand">
         <img src="logo_ruiz_rivas.png" alt="Ruiz y Rivas Consultores">
         <h1>Acceso privado</h1>
-        <p>Introduce tus datos para entrar al panel de gestión.</p>
+        <p>Usa tu correo corporativo y tu contraseña.</p>
       </div>
       <form id="loginForm" class="login-form">
-        <label for="loginUser">Usuario</label>
-        <input id="loginUser" name="username" autocomplete="username" required autofocus>
+        <label for="loginUser">Correo corporativo</label>
+        <input id="loginUser" name="email" type="email" autocomplete="username" placeholder="nombre@empresa.es" required autofocus>
         <label for="loginPassword">Contraseña</label>
         <input id="loginPassword" name="password" type="password" autocomplete="current-password" required>
         <p id="loginError" class="login-error" aria-live="polite"></p>
-        <button class="primary" type="submit">Entrar</button>
+        <button class="primary" type="submit">Entrar de forma segura</button>
+        <button class="ghost" type="button" id="resetPasswordButton" style="width:100%;margin-top:9px">He olvidado mi contraseña</button>
       </form>
     </div>
   </section>
@@ -207,34 +208,21 @@
   <div id="toast" class="toast"></div>
 
   <script>
-    var loginAccounts = {
-      Crivas: { username:'Crivas', name:'Carlos Rivas Durán', password:'Crivas2026!', role:'Administrador' },
-      JRuiz: { username:'JRuiz', name:'Joaquín Ruiz Baena', password:'JRuiz2026!', role:'Gestor' },
-      KCrespo: { username:'KCrespo', name:'Francisco Javier Crespo Chacón', password:'KCrespo2026!', role:'Gestor' }
-    };
     var activeUser = null;
     function showActiveUser(account) {
       var badge = document.getElementById('currentUser');
       if (badge) badge.textContent = account ? 'Sesión: ' + account.name + ' · ' + account.role : '';
     }
     function hasLoginSession() {
-      try {
-        var saved = sessionStorage.getItem('ruiz-rivas-login');
-        if (saved === 'ok') { activeUser = loginAccounts.Crivas; showActiveUser(activeUser); return true; }
-        var session = JSON.parse(saved || 'null');
-        if (session && loginAccounts[session.username]) { activeUser = loginAccounts[session.username]; showActiveUser(activeUser); return true; }
-      } catch (e) {}
       return false;
     }
     function unlockApp(account) {
       activeUser = account;
-      try { sessionStorage.setItem('ruiz-rivas-login', JSON.stringify({ username:account.username })); } catch (e) {}
       document.body.classList.add('unlocked');
       showActiveUser(account);
       if (typeof render === 'function') render(false);
     }
     function lockApp() {
-      try { sessionStorage.removeItem('ruiz-rivas-login'); } catch (e) {}
       document.body.classList.remove('unlocked');
       activeUser = null;
       showActiveUser(null);
@@ -246,51 +234,38 @@
     if (hasLoginSession()) document.body.classList.add('unlocked');
     document.getElementById('loginForm').addEventListener('submit', function(e) {
       e.preventDefault();
-      var user = document.getElementById('loginUser').value.trim();
+      var email = document.getElementById('loginUser').value.trim().toLowerCase();
       var password = document.getElementById('loginPassword').value;
       var error = document.getElementById('loginError');
-      var account = loginAccounts[user];
-      if (account && password === account.password) {
-        error.textContent = '';
-        unlockApp(account);
+      error.textContent = '';
+      if (!window.firebaseSignIn) {
+        error.textContent = 'El acceso seguro todavía se está preparando. Recarga la página e inténtalo de nuevo.';
         return;
       }
-      error.textContent = 'Usuario o contraseña incorrectos.';
-      document.getElementById('loginPassword').value = '';
-      document.getElementById('loginPassword').focus();
+      var button = this.querySelector('button[type="submit"]');
+      if (button) { button.disabled = true; button.textContent = 'Comprobando...'; }
+      window.firebaseSignIn(email, password).catch(function(firebaseError) {
+        error.textContent = firebaseError && firebaseError.code === 'auth/invalid-credential' ? 'Correo o contraseña incorrectos.' : 'No se ha podido iniciar sesión. Comprueba la conexión.';
+        document.getElementById('loginPassword').value = '';
+      }).finally(function() {
+        if (button) { button.disabled = false; button.textContent = 'Entrar de forma segura'; }
+      });
+    });
+    document.getElementById('resetPasswordButton').addEventListener('click', function() {
+      var email = document.getElementById('loginUser').value.trim().toLowerCase();
+      var error = document.getElementById('loginError');
+      if (!email) { error.textContent = 'Escribe primero tu correo corporativo.'; return; }
+      if (!window.firebaseResetPassword) { error.textContent = 'El servicio de recuperación todavía se está preparando.'; return; }
+      window.firebaseResetPassword(email).then(function() { error.style.color = 'var(--green)'; error.textContent = 'Te hemos enviado un correo para cambiar la contraseña.'; }).catch(function() { error.style.color = 'var(--red)'; error.textContent = 'No se ha podido enviar el correo de recuperación.'; });
     });
     var state = {
       view: 'inicio',
-      clients: [
-        { id:1, name:'María López', detail:'maria@ejemplo.com', tax:'12345678A' },
-        { id:2, name:'Construcciones Norte S.L.', detail:'admin@norte.es', tax:'B12345678' },
-        { id:3, name:'Estudio Marín', detail:'hola@estudiomarin.es', tax:'B87654321' }
-      ],
-      products: [
-        { id:1, name:'Consultoría empresarial', code:'CONS-001', price:850 },
-        { id:2, name:'Diseño de logotipo', code:'DIS-001', price:250 },
-        { id:3, name:'Mantenimiento mensual', code:'MANT-001', price:450 }
-      ],
-      invoices: [
-        { id:'F-2026-004', client:'Estudio Marín', date:'22/10/2026', status:'Pagada', total:2450 },
-        { id:'F-2026-003', client:'Construcciones Norte S.L.', date:'18/10/2026', status:'Pendiente', total:1340 },
-        { id:'F-2026-002', client:'María López', date:'10/10/2026', status:'Pagada', total:850 },
-        { id:'F-2026-001', client:'Servicios Delta', date:'02/10/2026', status:'Borrador', total:620 }
-      ],
-      quotes: [
-        { id:'P-2026-006', client:'Talleres Vega', date:'21/10/2026', status:'Pendiente', total:1890 },
-        { id:'P-2026-005', client:'Construcciones Norte S.L.', date:'16/10/2026', status:'Aceptado', total:1340 },
-        { id:'P-2026-004', client:'Estudio Marín', date:'09/10/2026', status:'Rechazado', total:920 }
-      ],
-      expenses: [
-        { id:'G-014', supplier:'Papelería Central', date:'20/10/2026', category:'Material', total:86.40 },
-        { id:'G-013', supplier:'Internet y teléfono', date:'15/10/2026', category:'Suministros', total:74.90 },
-        { id:'G-012', supplier:'Alquiler oficina', date:'01/10/2026', category:'Oficina', total:620 }
-      ],
-      accounts: [
-        { id:1, name:'Cuenta principal', iban:'ES00 0000 0000 0000 0000 0000' },
-        { id:2, name:'Cuenta secundaria', iban:'ES00 0000 0000 0000 0000 0001' }
-      ],
+      clients: [],
+      products: [],
+      invoices: [],
+      quotes: [],
+      expenses: [],
+      accounts: [],
       remittances: [],
       settings: {
         companyName:'Ruiz y Rivas Consultores',
@@ -310,20 +285,8 @@
       activity: []
     };
     var storageKey = 'ruiz-rivas-facturacion-v2';
-    try {
-      var saved = JSON.parse(localStorage.getItem(storageKey) || 'null');
-      if (saved) {
-        state.clients = saved.clients || state.clients;
-        state.products = saved.products || state.products;
-        state.invoices = saved.invoices || state.invoices;
-        state.quotes = saved.quotes || state.quotes;
-        state.expenses = saved.expenses || state.expenses;
-        state.accounts = saved.accounts || state.accounts;
-        state.remittances = Array.isArray(saved.remittances) ? saved.remittances : state.remittances;
-        state.settings = Object.assign({}, state.settings, saved.settings || {});
-        state.activity = Array.isArray(saved.activity) ? saved.activity : state.activity;
-      }
-    } catch (e) {}
+    // La versión segura no hidrata datos de empresa desde localStorage.
+    // La fuente de verdad debe ser Firebase, no el navegador de cada trabajador.
     function parseAmount(value) {
       var text = String(value == null ? '' : value).trim().replace(/\s/g, '');
       if (!text) return 0;
@@ -397,7 +360,6 @@
     var $ = function(id) { return document.getElementById(id); };
     function saveState() {
       var snapshot = { version:2, initialized:true, updatedAt:new Date().toISOString(), clients:state.clients, products:state.products, invoices:state.invoices, quotes:state.quotes, expenses:state.expenses, accounts:state.accounts, remittances:state.remittances, settings:state.settings, activity:state.activity };
-      try { localStorage.setItem(storageKey, JSON.stringify(snapshot)); } catch (e) {}
       if (!window.suppressSharedSave && typeof window.persistSharedState === 'function') window.persistSharedState(snapshot);
     }
     function toast(message) {
@@ -1325,7 +1287,7 @@
       var action = e.target.closest('[data-action]');
       if (!action) return;
       var a = action.dataset.action;
-      if (a === 'logout') { lockApp(); return; }
+      if (a === 'logout') { if (window.firebaseSignOut) window.firebaseSignOut(); else lockApp(); return; }
       if (['delete-client','delete-product','delete-expense','delete-quote','delete-invoice','new-account','edit-account','delete-account','save-settings','toggle-setting','edit-default-vat','customize-template','backup-import'].indexOf(a) >= 0 && !requireAdmin()) return;
       if (a === 'new-invoice') newInvoice();
       if (a === 'new-client') newClient();
@@ -1401,6 +1363,7 @@
   </script>
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
+    import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
     import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
     const firebaseConfig = {
@@ -1414,11 +1377,23 @@
     };
 
     const firebaseApp = initializeApp(firebaseConfig);
+    const auth = getAuth(firebaseApp);
     const db = getFirestore(firebaseApp);
     const sharedDoc = doc(db, "appData", "ruiz_rivas_facturacion");
     let sharedReady = false;
     let queuedSnapshot = null;
     let writeChain = Promise.resolve();
+    let sharedUnsubscribe = null;
+
+    window.firebaseSignIn = function(email, password) {
+      return signInWithEmailAndPassword(auth, email, password);
+    };
+    window.firebaseSignOut = function() {
+      return signOut(auth);
+    };
+    window.firebaseResetPassword = function(email) {
+      return sendPasswordResetEmail(auth, email);
+    };
 
     function setSyncStatus(type, text) {
       const badge = document.getElementById('syncBadge');
@@ -1446,7 +1421,7 @@
 
     window.persistSharedState = function(snapshot) {
       queuedSnapshot = snapshot;
-      if (!sharedReady) return;
+      if (!sharedReady || !auth.currentUser) return;
       writeChain = writeChain.then(async function() {
         if (!queuedSnapshot) return;
         const nextSnapshot = queuedSnapshot;
@@ -1460,7 +1435,9 @@
       });
     };
 
-    onSnapshot(sharedDoc, async function(snapshot) {
+    function startSharedSync() {
+      if (sharedUnsubscribe) return;
+      sharedUnsubscribe = onSnapshot(sharedDoc, async function(snapshot) {
       if (!snapshot.exists()) {
         sharedReady = true;
         try {
@@ -1504,10 +1481,24 @@
       sharedReady = true;
       setSyncStatus('online', 'Sincronizado');
       try { window.render(false); } finally { window.suppressSharedSave = previousSuppress; }
-    }, function(error) {
-      console.error('Error leyendo Firebase:', error);
-      sharedReady = true;
-      setSyncStatus('error', 'Sin conexión');
+      }, function(error) {
+        console.error('Error leyendo Firebase:', error);
+        sharedReady = true;
+        setSyncStatus('error', error && error.code === 'permission-denied' ? 'Sin permisos de datos' : 'Sin conexión');
+      });
+    }
+
+    onAuthStateChanged(auth, function(user) {
+      if (!user) {
+        sharedReady = false;
+        queuedSnapshot = null;
+        if (sharedUnsubscribe) { sharedUnsubscribe(); sharedUnsubscribe = null; }
+        setSyncStatus('locked', 'Inicia sesión para sincronizar');
+        if (typeof window.lockApp === 'function') window.lockApp();
+        return;
+      }
+      window.unlockApp({ username:user.email, name:user.displayName || user.email, role:'Usuario autenticado', uid:user.uid, email:user.email });
+      startSharedSync();
     });
   </script>
 </body>

@@ -1,0 +1,92 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function member(companyId) {
+      return signedIn() && exists(
+        /databases/$(database)/documents/companies/$(companyId)/members/$(request.auth.uid)
+      );
+    }
+
+    function admin(companyId) {
+      return member(companyId) && get(
+        /databases/$(database)/documents/companies/$(companyId)/members/$(request.auth.uid)
+      ).data.role == 'admin';
+    }
+
+    function manager(companyId) {
+      return member(companyId) && get(
+        /databases/$(database)/documents/companies/$(companyId)/members/$(request.auth.uid)
+      ).data.role in ['admin', 'manager'];
+    }
+
+    // Transición segura para la versión actual de la app.
+    // Debe mantenerse solo mientras se migra appData a companies/{companyId}/...
+    match /appData/ruiz_rivas_facturacion {
+      allow read, write: if signedIn();
+    }
+
+    match /companies/{companyId} {
+      allow read: if member(companyId);
+      allow write: if admin(companyId);
+    }
+
+    match /companies/{companyId}/members/{uid} {
+      allow read: if member(companyId);
+      allow create, update: if admin(companyId);
+      allow delete: if false;
+    }
+
+    match /companies/{companyId}/invoices/{invoiceId} {
+      allow read: if member(companyId);
+      allow create, update: if manager(companyId);
+      allow delete: if false;
+    }
+
+    match /companies/{companyId}/clients/{docId} {
+      allow read: if member(companyId);
+      allow create, update: if manager(companyId);
+      allow delete: if admin(companyId);
+    }
+
+    match /companies/{companyId}/products/{docId} {
+      allow read: if member(companyId);
+      allow create, update: if manager(companyId);
+      allow delete: if admin(companyId);
+    }
+
+    match /companies/{companyId}/quotes/{docId} {
+      allow read: if member(companyId);
+      allow create, update: if manager(companyId);
+      allow delete: if admin(companyId);
+    }
+
+    match /companies/{companyId}/expenses/{docId} {
+      allow read: if member(companyId);
+      allow create, update: if manager(companyId);
+      allow delete: if admin(companyId);
+    }
+
+    match /companies/{companyId}/payments/{docId} {
+      allow read: if member(companyId);
+      allow create, update: if manager(companyId);
+      allow delete: if admin(companyId);
+    }
+
+    match /companies/{companyId}/remittances/{docId} {
+      allow read: if member(companyId);
+      allow create, update: if manager(companyId);
+      allow delete: if false;
+    }
+
+    match /companies/{companyId}/audit/{docId} {
+      allow read: if member(companyId);
+      allow create: if manager(companyId);
+      allow update, delete: if false;
+    }
+  }
+}
