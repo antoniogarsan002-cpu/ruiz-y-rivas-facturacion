@@ -1543,7 +1543,9 @@
         if (typeof window.lockApp === 'function') window.lockApp();
         return;
       }
-      window.unlockApp({ username:user.email, name:user.displayName || user.email, role:'Usuario autenticado', uid:user.uid, email:user.email });
+       const normalizedEmail = String(user.email || '').trim().toLowerCase();
+       const isAdministrator = normalizedEmail === 'agarcia@rconsultores.es';
+       window.unlockApp({ username:user.email, name:isAdministrator ? 'Carlos Rivas Durán' : (user.displayName || user.email), role:isAdministrator ? 'Administrador' : 'Usuario', uid:user.uid, email:user.email });
       startSharedSync();
     });
   </script>
