@@ -1519,6 +1519,8 @@
     let sharedReady = false;
     let queuedSnapshot = null;
     let writeChain = Promise.resolve();
+    let persistTimer = null;
+    let lastLocalUpdate = '';
     let sharedUnsubscribe = null;
 
     window.firebaseSignIn = function(email, password) {
@@ -1627,18 +1629,22 @@
 
     window.persistSharedState = function(snapshot) {
       queuedSnapshot = snapshot;
-      if (!sharedReady || !auth.currentUser) return;
-      writeChain = writeChain.then(async function() {
-        if (!queuedSnapshot) return;
-        const nextSnapshot = queuedSnapshot;
-        queuedSnapshot = null;
-        setSyncStatus('saving', 'Guardando en la nube...');
-        await setDoc(sharedDoc, nextSnapshot);
-        setSyncStatus('online', 'Sincronizado');
-      }).catch(function(error) {
-        console.error('Error al guardar en Firebase:', error);
-        setSyncStatus('error', 'Error al sincronizar');
-      });
+      if (!sharedReady || !auth.currentUser || persistTimer) return;
+      persistTimer = setTimeout(function() {
+        persistTimer = null;
+        writeChain = writeChain.then(async function() {
+          if (!queuedSnapshot) return;
+          const nextSnapshot = queuedSnapshot;
+          queuedSnapshot = null;
+          lastLocalUpdate = nextSnapshot.updatedAt || '';
+          setSyncStatus('saving', 'Guardando en la nube...');
+          await setDoc(sharedDoc, nextSnapshot);
+          setSyncStatus('online', 'Sincronizado');
+        }).catch(function(error) {
+          console.error('Error al guardar en Firebase:', error);
+          setSyncStatus('error', 'Error al sincronizar');
+        });
+      }, 80);
     };
 
     function startSharedSync() {
@@ -1658,6 +1664,11 @@
       }
 
       const remote = snapshot.data() || {};
+      if (lastLocalUpdate && remote.updatedAt === lastLocalUpdate) {
+        sharedReady = true;
+        setSyncStatus('online', 'Sincronizado');
+        return;
+      }
       const local = localSnapshot();
       const remoteHasRecords = ['clients','products','invoices','quotes','expenses','accounts'].some(function(key) { return Array.isArray(remote[key]) && remote[key].length; });
       const localHasRecords = ['clients','products','invoices','quotes','expenses','accounts'].some(function(key) { return Array.isArray(local[key]) && local[key].length; });
@@ -1698,6 +1709,8 @@
       if (!user) {
         sharedReady = false;
         queuedSnapshot = null;
+        lastLocalUpdate = '';
+        if (persistTimer) { clearTimeout(persistTimer); persistTimer = null; }
         if (sharedUnsubscribe) { sharedUnsubscribe(); sharedUnsubscribe = null; }
         setSyncStatus('locked', 'Inicia sesión para sincronizar');
         if (typeof window.lockApp === 'function') window.lockApp();
