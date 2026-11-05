@@ -311,7 +311,7 @@
     function futureDate(days) { var date = new Date(); date.setDate(date.getDate() + days); return date.toLocaleDateString('es-ES'); }
     function dateValue(value) { var parts = String(value || '').split('/'); return parts.length === 3 ? Number(parts[2]) * 10000 + Number(parts[1]) * 100 + Number(parts[0]) : 0; }
     function nextDocumentNumber(prefix, items) {
-      var max = items.reduce(function(highest, item) { var match = String(item.id || '').match(/(\d+)$/); return match ? Math.max(highest, Number(match[1])) : highest; }, 0);
+      var max = items.reduce(function(highest, item) { var identifier = String(item.id || ''); if (identifier.indexOf(prefix) !== 0) return highest; var match = identifier.match(/(\d+)$/); return match ? Math.max(highest, Number(match[1])) : highest; }, 0);
       return prefix + String(max + 1).padStart(3, '0');
     }
     var statusClass = function(s) { return s === 'Pagada' || s === 'Aceptado' ? 'paid' : s === 'Parcial' ? 'partial' : s === 'Pendiente' || s === 'Enviada' ? 'pending' : s === 'Rechazado' ? 'rejected' : 'draft'; };
@@ -694,7 +694,21 @@
         $('invoiceLines').closest('.invoice-lines-card').insertAdjacentHTML('beforebegin', '<div class="form-grid invoice-due-date"><div><label>Fecha de vencimiento</label><input name="dueDate" value="' + esc(dueValue) + '" placeholder="dd/mm/aaaa"></div></div>');
         $('invoiceLines').closest('.invoice-lines-card').insertAdjacentHTML('beforebegin', '<div class="form-grid invoice-extra-fields"><div><label>Nº de expediente</label><input name="fileNumber" value="' + esc(invoiceForEdit && (invoiceForEdit.fileNumber || invoiceForEdit.expediente) || '') + '" placeholder="Opcional"></div><div><label>Expedida en</label><input name="issuedIn" value="' + esc(invoiceForEdit && invoiceForEdit.issuedIn || '') + '" placeholder="Ciudad"></div></div><div class="form-grid invoice-extra-fields"><div><label>% de retención</label><input name="retentionRate" type="number" min="0" step="0.01" value="' + esc(invoiceForEdit && (invoiceForEdit.retentionRate != null ? invoiceForEdit.retentionRate : invoiceForEdit.irpf) || '') + '" placeholder="0"></div><div><label>Nº factura rectificada</label><input name="rectifies" value="' + esc(invoiceForEdit && invoiceForEdit.rectifies || '') + '" placeholder="Opcional"></div></div><div class="form-grid invoice-extra-fields"><div><label>Provisiones (€)</label><input name="provisions" type="number" min="0" step="0.01" value="' + esc(invoiceForEdit && (invoiceForEdit.provisions != null ? invoiceForEdit.provisions : invoiceForEdit.provisiones) || '') + '" placeholder="0,00"></div><div><label>Suplidos (€)</label><input name="suplidos" type="number" min="0" step="0.01" value="' + esc(invoiceForEdit && (invoiceForEdit.suplidos != null ? invoiceForEdit.suplidos : invoiceForEdit.suplidosTotal) || '') + '" placeholder="0,00"></div></div>');
       }
+      var rectifiedOptions = '<option value="">Selecciona la factura original...</option>';
+      var currentRectifiedId = invoiceForEdit && invoiceForEdit.rectifies ? String(invoiceForEdit.rectifies) : '';
+      if (invoiceDialog) {
+        rectifiedOptions += state.invoices.filter(function(item) { return !invoiceForEdit || String(item.id) !== String(invoiceForEdit.id); }).map(function(item) { return '<option value="' + esc(item.id) + '"' + (String(item.id) === currentRectifiedId ? ' selected' : '') + '>' + esc(item.id) + ' · ' + esc(item.client) + '</option>'; }).join('');
+        var invoiceTypeSelected = invoiceForEdit && (invoiceForEdit.rectificative === true || String(invoiceForEdit.id).indexOf('R-') === 0) ? 'rectificativa' : 'normal';
+        $('invoiceLines').closest('.invoice-lines-card').insertAdjacentHTML('beforebegin', '<div class="form-grid invoice-extra-fields"><div><label>Tipo de factura</label><select name="invoiceType"><option value="normal"' + (invoiceTypeSelected === 'normal' ? ' selected' : '') + '>Factura normal</option><option value="rectificativa"' + (invoiceTypeSelected === 'rectificativa' ? ' selected' : '') + '>Factura rectificativa</option></select></div></div>');
+      }
       var form = $('modal').querySelector('form');
+      if (invoiceDialog && form) {
+        var rectifiesInput = form.querySelector('[name="rectifies"]');
+        if (rectifiesInput) {
+          var rectifiesContainer = rectifiesInput.parentElement;
+          rectifiesContainer.innerHTML = '<label>Factura original</label><select name="rectifies">' + rectifiedOptions + '</select>';
+        }
+      }
       if (form) form.addEventListener('submit', function(e) {
         e.preventDefault();
         var data = new FormData(e.target);
@@ -740,12 +754,14 @@
         if (!data.get('client')) { toast('Selecciona un cliente antes de continuar'); return; }
         if (!lines.length || !lines.some(function(line) { return line.base > 0; })) { toast('Escribe una base imponible mayor que 0 €'); var firstAmount = document.querySelector('#invoiceLines [name="lineBase"]'); if (firstAmount) firstAmount.focus(); return; }
         var paymentMethod = data.get('payment');
+        var invoiceType = data.get('invoiceType') === 'rectificativa' ? 'rectificativa' : 'normal';
+        var rectifies = invoiceType === 'rectificativa' ? (data.get('rectifies') || '') : '';
         var selectedIds = data.getAll('accounts');
         var selectedAccounts = state.accounts.filter(function(a) { return selectedIds.some(function(id) { return String(a.id) === String(id); }); });
         var accountLabels = paymentMethod === 'transferencia' ? selectedAccounts.map(function(a) { return a.name + ' · ' + a.iban; }) : [];
         var commonIva = lines.length && lines.every(function(line) { return line.iva === lines[0].iva; }) ? lines[0].iva : null;
-        var num = nextDocumentNumber('F-2026-', state.invoices);
-        state.invoices.unshift({ id:num, client:data.get('client'), date:data.get('date'), status:'Borrador', subtotal:totals.base, total:totals.total, iva:commonIva, lines:lines, paymentMethod:paymentMethod, paymentAccount:accountLabels.join(' · '), paymentAccounts:accountLabels, notes:data.get('notes') || '' });
+        var num = nextDocumentNumber(invoiceType === 'rectificativa' ? 'R-2026-' : 'F-2026-', state.invoices);
+        state.invoices.unshift({ id:num, client:data.get('client'), date:data.get('date'), status:'Borrador', subtotal:totals.base, total:totals.total, iva:commonIva, lines:lines, paymentMethod:paymentMethod, paymentAccount:accountLabels.join(' · '), paymentAccounts:accountLabels, invoiceType:invoiceType, rectificative:invoiceType === 'rectificativa', rectifies:rectifies, notes:data.get('notes') || '' });
         recordActivity('Creada','Factura',num,'Factura nueva para ' + data.get('client'));
         closeModal();
         state.view='facturas';
@@ -812,12 +828,14 @@
         if (!data.get('client')) { toast('Selecciona un cliente antes de continuar'); return; }
         if (!lines.length || !lines.some(function(line) { return line.base > 0; })) { toast('Escribe una base imponible mayor que 0 €'); var firstAmount = document.querySelector('#invoiceLines [name="lineBase"]'); if (firstAmount) firstAmount.focus(); return; }
         var paymentMethod = data.get('payment');
+        var invoiceType = data.get('invoiceType') === 'rectificativa' ? 'rectificativa' : 'normal';
+        var rectifies = invoiceType === 'rectificativa' ? (data.get('rectifies') || '') : '';
         var selectedIds = data.getAll('accounts');
         var selectedAccounts = state.accounts.filter(function(a) { return selectedIds.some(function(id) { return String(a.id) === String(id); }); });
         var accountLabels = paymentMethod === 'transferencia' ? selectedAccounts.map(function(a) { return a.name + ' · ' + a.iban; }) : [];
         var commonIva = lines.length && lines.every(function(line) { return line.iva === lines[0].iva; }) ? lines[0].iva : null;
-        var num = nextDocumentNumber('F-2026-', state.invoices);
-        state.invoices.unshift({ id:num, client:data.get('client'), date:data.get('date'), status:'Borrador', subtotal:totals.base, total:totals.total, iva:commonIva, lines:lines, paymentMethod:paymentMethod, paymentAccount:accountLabels.join(' · '), paymentAccounts:accountLabels, notes:data.get('notes') || '' });
+        var num = nextDocumentNumber(invoiceType === 'rectificativa' ? 'R-2026-' : 'F-2026-', state.invoices);
+        state.invoices.unshift({ id:num, client:data.get('client'), date:data.get('date'), status:'Borrador', subtotal:totals.base, total:totals.total, iva:commonIva, lines:lines, paymentMethod:paymentMethod, paymentAccount:accountLabels.join(' · '), paymentAccounts:accountLabels, invoiceType:invoiceType, rectificative:invoiceType === 'rectificativa', rectifies:rectifies, notes:data.get('notes') || '' });
         recordActivity('Creada','Factura',num,'Factura nueva para ' + data.get('client'));
         closeModal();
         state.view='facturas';
@@ -913,7 +931,9 @@
         var commonIva = lines.length && lines.every(function(line) { return line.iva === lines[0].iva; }) ? lines[0].iva : null;
         var selectedIds = data.getAll('accounts');
         var selectedAccounts = state.accounts.filter(function(a) { return selectedIds.some(function(accountId) { return String(a.id) === String(accountId); }); });
-        var accountLabels = selectedAccounts.map(function(a) { return a.name + ' · ' + a.iban; });
+        var invoiceType = data.get('invoiceType') === 'rectificativa' ? 'rectificativa' : 'normal';
+        var rectifies = invoiceType === 'rectificativa' ? (data.get('rectifies') || '') : '';
+        var accountLabels = data.get('payment') === 'transferencia' ? selectedAccounts.map(function(a) { return a.name + ' · ' + a.iban; }) : [];
         invoice.id = data.get('number') || invoice.id;
         invoice.client = data.get('client');
         invoice.date = data.get('date');
@@ -925,6 +945,9 @@
         invoice.paymentMethod = data.get('payment');
         invoice.paymentAccount = accountLabels.join(' · ');
         invoice.paymentAccounts = accountLabels;
+        invoice.invoiceType = invoiceType;
+        invoice.rectificative = invoiceType === 'rectificativa';
+        invoice.rectifies = rectifies;
         invoice.notes = data.get('notes') || '';
         closeModal();
         state.view = 'facturas';
