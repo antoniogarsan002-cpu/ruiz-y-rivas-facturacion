@@ -267,6 +267,7 @@
       expenses: [],
       accounts: [],
       remittances: [],
+       recurringInvoices: [],
       settings: {
         companyName:'Ruiz y Rivas Consultores',
         taxId:'B12345678',
@@ -376,7 +377,7 @@
     }
     var $ = function(id) { return document.getElementById(id); };
     function saveState() {
-      var snapshot = { version:2, initialized:true, updatedAt:new Date().toISOString(), clients:state.clients, products:state.products, invoices:state.invoices, quotes:state.quotes, expenses:state.expenses, accounts:state.accounts, remittances:state.remittances, settings:state.settings, activity:state.activity };
+       var snapshot = { version:3, initialized:true, updatedAt:new Date().toISOString(), clients:state.clients, products:state.products, invoices:state.invoices, quotes:state.quotes, expenses:state.expenses, accounts:state.accounts, remittances:state.remittances, recurringInvoices:state.recurringInvoices, settings:state.settings, activity:state.activity };
       if (!window.suppressSharedSave && typeof window.persistSharedState === 'function') window.persistSharedState(snapshot);
     }
     function toast(message) {
@@ -433,7 +434,8 @@
       $('workspace').innerHTML = '<div class="view-title"><div><h2>Tus facturas</h2><p>Numeración, IVA, estados y seguimiento de cobros.</p></div><button class="primary" data-action="new-invoice">+ Nueva factura</button></div>' +
         '<div class="toolbar"><input id="invoiceSearch" placeholder="Buscar por cliente o número..."><select id="invoiceFilter"><option value="">Todos los estados</option><option>Pagada</option><option>Parcial</option><option>Pendiente</option><option>Enviada</option><option>Borrador</option></select><button class="ghost" data-action="import" data-type="facturas">Importar CSV</button><button class="ghost" data-action="print">Imprimir listado</button><button class="secondary" data-action="print-all-invoices">Descargar todo en PDF</button><button class="ghost" data-action="export-invoices-csv">Exportar CSV</button></div>' +
         '<div class="card list-card">' + invoiceTable(state.invoices, true) + '</div>' +
-        '<div class="feature-grid" style="margin-top:18px">' + feature('↻','Facturas recurrentes','Genera facturas mensuales automáticamente.') + feature('↩','Rectificativas','Corrige devoluciones o errores.') + feature('✉','Recordatorios','Avisa de pagos pendientes.') + '</div>';
+        '<div class="card" style="margin-top:18px"><div class="card-head"><div><h3 style="margin:0">Facturación periódica</h3><span style="color:#667085;font-size:12px">Crea reglas y genera borradores cuando llegue la fecha.</span></div><div class="toolbar" style="margin:0"><button class="ghost" data-action="export-recurring-csv">Exportar reglas</button><button class="secondary" data-action="generate-due-recurring">Generar vencidas</button><button class="primary" data-action="new-recurring">+ Nueva regla</button></div></div>' + recurringInvoiceTable(state.recurringInvoices || []) + '</div>' +
+        '<div class="feature-grid" style="margin-top:18px">' + feature('↻','Facturas recurrentes','Reglas mensuales, trimestrales o anuales.') + feature('↩','Rectificativas','Corrige devoluciones o errores.') + feature('✉','Recordatorios','Avisa de pagos pendientes.') + '</div>';
       $('invoiceSearch').addEventListener('input', filterInvoices);
       $('invoiceFilter').addEventListener('change', filterInvoices);
     }
@@ -441,6 +443,85 @@
       var q = $('invoiceSearch').value.toLowerCase(), f = $('invoiceFilter').value;
       var rows = state.invoices.filter(function(i) { return (!q || (i.client + i.id).toLowerCase().indexOf(q) >= 0) && (!f || i.status === f); });
       document.querySelector('.list-card').innerHTML = invoiceTable(rows, true);
+    }
+
+    function recurringInvoiceTable(items) {
+      if (!items.length) return '<div class="empty">Todavía no hay reglas periódicas. Crea una para no volver a preparar manualmente las facturas repetitivas.</div>';
+      return '<div class="table-wrap"><table><thead><tr><th>Regla</th><th>Cliente</th><th>Frecuencia</th><th>Próxima fecha</th><th>Importe</th><th>Estado</th><th></th></tr></thead><tbody>' + items.map(function(rule) {
+        var total = invoiceTotals([{ description:rule.description, base:parseAmount(rule.base), iva:parseAmount(rule.iva) }]).total;
+        var due = dateValue(rule.nextDate) && dateValue(rule.nextDate) <= dateValue(today());
+        return '<tr><td><strong>' + esc(rule.id) + '</strong><br><small style="color:#667085">' + esc(rule.description) + '</small></td><td>' + esc(rule.client) + '</td><td>' + esc(rule.frequency || 'Mensual') + '</td><td>' + esc(rule.nextDate || 'Sin fecha') + (due ? '<br><span class="status rejected">Pendiente de generar</span>' : '') + '</td><td class="amount">' + euro(total) + '</td><td>' + statusBadge(rule.active === false ? 'Pausada' : 'Activa') + '</td><td><div class="row-actions"><button class="secondary" data-action="generate-recurring" data-id="' + esc(rule.id) + '">Generar ahora</button><button class="ghost" data-action="edit-recurring" data-id="' + esc(rule.id) + '">Editar</button><button class="danger" data-action="delete-recurring" data-id="' + esc(rule.id) + '">Borrar</button></div></td></tr>';
+      }).join('') + '</tbody></table></div>';
+    }
+
+    function recurringFrequencyOptions(selected) {
+      return [{ value:'Mensual', label:'Mensual' }, { value:'Trimestral', label:'Trimestral' }, { value:'Anual', label:'Anual' }].map(function(item) { return '<option value="' + item.value + '"' + (selected === item.value ? ' selected' : '') + '>' + item.label + '</option>'; }).join('');
+    }
+
+    function addRecurringDate(value, frequency) {
+      var parts = String(value || '').split('/');
+      if (parts.length !== 3) return futureDate(frequency === 'Anual' ? 365 : frequency === 'Trimestral' ? 90 : 30);
+      var date = new Date(Number(parts[2]), Number(parts[1]) - 1, Number(parts[0]));
+      if (Number.isNaN(date.getTime())) return futureDate(30);
+      date.setMonth(date.getMonth() + (frequency === 'Anual' ? 12 : frequency === 'Trimestral' ? 3 : 1));
+      return date.toLocaleDateString('es-ES');
+    }
+
+    function recurringAccountOptions(selectedIds) {
+      var selected = Array.isArray(selectedIds) ? selectedIds.map(String) : [];
+      return state.accounts.map(function(account) { return '<label class="account-option"><input type="checkbox" name="accounts" value="' + esc(account.id) + '"' + (selected.indexOf(String(account.id)) >= 0 ? ' checked' : '') + '><span>' + esc(account.name + ' · ' + account.iban) + '</span></label>'; }).join('');
+    }
+
+    function newRecurringInvoice(editId) {
+      var existing = editId ? (state.recurringInvoices || []).find(function(item) { return String(item.id) === String(editId); }) : null;
+      if (editId && !existing) return;
+      var clientOptions = state.clients.map(function(client) { return '<option value="' + esc(client.name) + '"' + (existing && existing.client === client.name ? ' selected' : '') + '>' + esc(client.name) + '</option>'; }).join('');
+      if (!clientOptions) { toast('Primero crea al menos un cliente'); return; }
+      var method = existing && existing.paymentMethod ? existing.paymentMethod : 'transferencia';
+      var accountOptions = recurringAccountOptions(existing && existing.accountIds);
+      var body = '<form class="form"><div class="form-grid"><div><label>Cliente</label><select name="client" required>' + clientOptions + '</select></div><div><label>Frecuencia</label><select name="frequency">' + recurringFrequencyOptions(existing && existing.frequency || 'Mensual') + '</select></div></div><label>Descripción del servicio</label><input name="description" required value="' + esc(existing && existing.description || '') + '" placeholder="Ej.: Asesoría mensual"><div class="form-grid"><div><label>Base imponible (€)</label><input name="base" type="number" min="0" step="0.01" required value="' + (existing ? parseAmount(existing.base).toFixed(2) : '') + '"></div><div><label>IVA</label><select name="iva">' + vatOptions(existing ? existing.iva : state.settings.defaultVat) + '</select></div></div><div class="form-grid"><div><label>Próxima fecha</label><input name="nextDate" required value="' + esc(existing && existing.nextDate || futureDate(30)) + '" placeholder="dd/mm/aaaa"></div><div><label>Días hasta vencimiento</label><input name="dueDays" type="number" min="0" max="365" step="1" value="' + (existing && existing.dueDays != null ? esc(existing.dueDays) : '30') + '"></div></div><div class="form-grid"><div><label>Forma de cobro</label><select name="paymentMethod">' + clientPaymentOptions(method) + '</select></div><div><label>Estado de la regla</label><select name="active"><option value="Sí"' + (!existing || existing.active !== false ? ' selected' : '') + '>Activa</option><option value="No"' + (existing && existing.active === false ? ' selected' : '') + '>Pausada</option></select></div></div><label>Cuentas del despacho para transferencias</label><div class="account-options">' + (accountOptions || '<div class="empty">No hay cuentas configuradas. Puedes crear la regla y añadirlas después desde Configuración.</div>') + '</div><div class="mini-info">Al generar una factura se creará como borrador y avanzará automáticamente la próxima fecha de esta regla.</div><div class="form-actions"><button type="button" class="ghost" data-action="close-modal">Cancelar</button><button class="primary">' + (existing ? 'Guardar cambios' : 'Crear regla') + '</button></div></form>';
+      openModal(existing ? 'Editar factura periódica' : 'Nueva factura periódica', body, function(data) {
+        var description = String(data.get('description') || '').trim();
+        var base = parseAmount(data.get('base'));
+        if (!description || base < 0) { toast('Completa la descripción y la base imponible'); return; }
+        var selectedIds = data.getAll('accounts');
+        var rule = existing || { id:nextDocumentNumber('REC-2026-', state.recurringInvoices || []), createdAt:new Date().toISOString() };
+        rule.client = data.get('client'); rule.frequency = data.get('frequency') || 'Mensual'; rule.description = description; rule.base = base; rule.iva = parseAmount(data.get('iva')); rule.nextDate = data.get('nextDate') || futureDate(30); rule.dueDays = Math.max(0, Number(data.get('dueDays')) || 0); rule.paymentMethod = data.get('paymentMethod') || 'transferencia'; rule.accountIds = selectedIds; rule.active = data.get('active') !== 'No'; rule.updatedAt = new Date().toISOString(); rule.user = activeUser ? activeUser.name : 'Sistema';
+        if (!existing) state.recurringInvoices.unshift(rule);
+        recordActivity(existing ? 'Modificada' : 'Creada', 'Factura periódica', rule.id, rule.client + ' · ' + rule.frequency);
+        closeModal(); toast(existing ? 'Regla periódica modificada' : 'Regla periódica creada'); render();
+      });
+    }
+
+    function createInvoiceFromRecurring(rule) {
+      var client = state.clients.find(function(item) { return item.name === rule.client; });
+      if (!client) { toast('El cliente de la regla ya no existe'); return false; }
+      var lines = [{ description:rule.description || 'Servicio periódico', base:parseAmount(rule.base), iva:parseAmount(rule.iva) }];
+      var totals = invoiceTotals(lines);
+      var accountLabels = rule.paymentMethod === 'transferencia' ? state.accounts.filter(function(account) { return (rule.accountIds || []).some(function(id) { return String(id) === String(account.id); }); }).map(function(account) { return account.name + ' · ' + account.iban; }) : [];
+      var invoice = { id:nextDocumentNumber('F-2026-', state.invoices), client:rule.client, date:today(), dueDate:futureDate(Number(rule.dueDays) || 0), status:'Borrador', subtotal:totals.base, total:totals.total, iva:lines.every(function(line) { return line.iva === lines[0].iva; }) ? lines[0].iva : null, lines:lines, paymentMethod:rule.paymentMethod || client.paymentMethod || 'transferencia', paymentAccount:accountLabels.join(' · '), paymentAccounts:accountLabels, notes:'', recurringId:rule.id };
+      state.invoices.unshift(invoice); rule.nextDate = addRecurringDate(rule.nextDate, rule.frequency); rule.lastGeneratedAt = new Date().toISOString(); recordActivity('Generada','Factura',invoice.id,'Desde la regla periódica ' + rule.id); return true;
+    }
+
+    function generateRecurringInvoice(id) {
+      var rule = (state.recurringInvoices || []).find(function(item) { return String(item.id) === String(id); });
+      if (!rule) return;
+      if (rule.active === false) { toast('Esta regla está pausada'); return; }
+      if (createInvoiceFromRecurring(rule)) { toast('Factura periódica generada como borrador'); render(); }
+    }
+
+    function generateDueRecurringInvoices() {
+      var due = (state.recurringInvoices || []).filter(function(rule) { return rule.active !== false && dateValue(rule.nextDate) && dateValue(rule.nextDate) <= dateValue(today()); });
+      if (!due.length) { toast('No hay reglas vencidas para generar'); return; }
+      var created = due.reduce(function(count, rule) { return count + (createInvoiceFromRecurring(rule) ? 1 : 0); }, 0);
+      toast(created + ' factura' + (created === 1 ? '' : 's') + ' periódica' + (created === 1 ? '' : 's') + ' generada' + (created === 1 ? '' : 's'));
+      render();
+    }
+
+    function deleteRecurringInvoice(id) {
+      var rule = (state.recurringInvoices || []).find(function(item) { return String(item.id) === String(id); });
+      if (!rule) return;
+      openModal('Borrar regla periódica', '<form class="form"><p style="margin:4px 0 0;color:#475467;line-height:1.5">¿Seguro que quieres borrar la regla <strong>' + esc(rule.id) + '</strong>? Las facturas ya generadas no se borrarán.</p><div class="form-actions"><button type="button" class="ghost" data-action="close-modal">Cancelar</button><button class="danger">Borrar regla</button></div></form>', function() { state.recurringInvoices = (state.recurringInvoices || []).filter(function(item) { return String(item.id) !== String(id); }); recordActivity('Borrada','Factura periódica',id,'Regla eliminada'); closeModal(); toast('Regla periódica borrada'); render(); });
     }
 
     function renderQuotes() {
@@ -639,7 +720,7 @@
       openModal(info[0], '<form class="form"><div class="mini-info">' + info[1] + '</div><div class="form-actions"><button type="button" class="primary" data-action="close-modal">Cerrar</button></div></form>', function() { closeModal(); });
     }
     function backupData() {
-      return { version:2, app:'Ruiz y Rivas Consultores', createdAt:new Date().toISOString(), data:{ clients:state.clients, products:state.products, invoices:state.invoices, quotes:state.quotes, expenses:state.expenses, accounts:state.accounts, remittances:state.remittances, settings:state.settings, activity:state.activity } };
+       return { version:3, app:'Ruiz y Rivas Consultores', createdAt:new Date().toISOString(), data:{ clients:state.clients, products:state.products, invoices:state.invoices, quotes:state.quotes, expenses:state.expenses, accounts:state.accounts, remittances:state.remittances, recurringInvoices:state.recurringInvoices, settings:state.settings, activity:state.activity } };
     }
     function exportBackup() {
       var blob = new Blob([JSON.stringify(backupData(), null, 2)], { type:'application/json' });
@@ -656,7 +737,7 @@
     function restoreBackupPayload(payload) {
       var data = payload && payload.data ? payload.data : payload;
       if (!data || !Array.isArray(data.clients) || !Array.isArray(data.invoices) || !Array.isArray(data.products)) { toast('El archivo no parece una copia válida'); return; }
-      openModal('Restaurar copia de seguridad', '<form class="form"><p style="margin:4px 0 0;color:#475467;line-height:1.5">Se reemplazarán los datos actuales de esta empresa por los de la copia. Esta acción se sincronizará con todos los dispositivos.</p><div class="mini-info">Clientes: ' + data.clients.length + ' · Facturas: ' + data.invoices.length + ' · Productos: ' + data.products.length + '</div><div class="form-actions"><button type="button" class="ghost" data-action="close-modal">Cancelar</button><button class="danger">Restaurar copia</button></div></form>', function() { state.clients = data.clients; state.products = data.products; state.invoices = data.invoices; state.quotes = Array.isArray(data.quotes) ? data.quotes : []; state.expenses = Array.isArray(data.expenses) ? data.expenses : []; state.accounts = Array.isArray(data.accounts) ? data.accounts : []; state.remittances = Array.isArray(data.remittances) ? data.remittances : []; state.settings = Object.assign({}, state.settings, data.settings || {}); state.activity = Array.isArray(data.activity) ? data.activity : []; recordActivity('Restaurada','Copia','', 'Copia de seguridad restaurada'); closeModal(); toast('Copia restaurada y sincronizada'); render(); });
+       openModal('Restaurar copia de seguridad', '<form class="form"><p style="margin:4px 0 0;color:#475467;line-height:1.5">Se reemplazarán los datos actuales de esta empresa por los de la copia. Esta acción se sincronizará con todos los dispositivos.</p><div class="mini-info">Clientes: ' + data.clients.length + ' · Facturas: ' + data.invoices.length + ' · Productos: ' + data.products.length + ' · Recurrentes: ' + (Array.isArray(data.recurringInvoices) ? data.recurringInvoices.length : 0) + '</div><div class="form-actions"><button type="button" class="ghost" data-action="close-modal">Cancelar</button><button class="danger">Restaurar copia</button></div></form>', function() { exportBackup(); state.clients = data.clients; state.products = data.products; state.invoices = data.invoices; state.quotes = Array.isArray(data.quotes) ? data.quotes : []; state.expenses = Array.isArray(data.expenses) ? data.expenses : []; state.accounts = Array.isArray(data.accounts) ? data.accounts : []; state.remittances = Array.isArray(data.remittances) ? data.remittances : []; state.recurringInvoices = Array.isArray(data.recurringInvoices) ? data.recurringInvoices : []; state.settings = Object.assign({}, state.settings, data.settings || {}); state.activity = Array.isArray(data.activity) ? data.activity : []; recordActivity('Restaurada','Copia','', 'Copia de seguridad restaurada; se descargó una copia de seguridad previa'); closeModal(); toast('Copia restaurada y sincronizada'); render(); });
     }
     function importBackupFile(file) {
       if (!file) return;
@@ -768,6 +849,14 @@
         var rectifies = invoiceType === 'rectificativa' ? (data.get('rectifies') || '') : '';
         if (invoiceType === 'rectificativa' && !rectifies) { toast('Selecciona la factura original que vas a rectificar'); return; }
         if (invoiceType === 'rectificativa' && !String(data.get('rectificationReason') || '').trim()) { toast('Indica el motivo de la rectificación'); return; }
+        var editedClient = state.clients.find(function(item) { return item.name === data.get('client'); }) || {};
+        if (data.get('payment') === 'transferencia' && !selectedAccounts.length) { toast('Selecciona al menos una cuenta del despacho para la transferencia'); return; }
+        if (data.get('payment') === 'recibo' && !isValidIban(editedClient.iban)) { toast('El cliente necesita un IBAN válido para cobrar por recibo'); return; }
+        if (invoiceType === 'rectificativa') {
+          var originalInvoice = state.invoices.find(function(item) { return String(item.id) === String(rectifies); });
+          if (!originalInvoice || originalInvoice.client !== data.get('client')) { toast('La factura original debe pertenecer al mismo cliente'); return; }
+        }
+        if (state.invoices.some(function(item) { return item !== invoice && String(item.id) === String(data.get('number') || invoice.id); })) { toast('Ya existe otra factura con ese número'); return; }
         var selectedIds = data.getAll('accounts');
         var selectedAccounts = state.accounts.filter(function(a) { return selectedIds.some(function(id) { return String(a.id) === String(id); }); });
         var accountLabels = paymentMethod === 'transferencia' ? selectedAccounts.map(function(a) { return a.name + ' · ' + a.iban; }) : [];
@@ -980,10 +1069,10 @@
         toast('Factura modificada');
         render();
       });
-      var usesBank = currentPayment === 'transferencia' || currentPayment === 'recibo';
+      var usesBank = currentPayment === 'transferencia';
       $('editInvoiceAccountWrap').style.display = usesBank ? 'block' : 'none';
       function updateEditPaymentFields() {
-        var bank = $('editInvoicePayment').value === 'transferencia' || $('editInvoicePayment').value === 'recibo';
+        var bank = $('editInvoicePayment').value === 'transferencia';
         $('editInvoiceAccountWrap').style.display = bank ? 'block' : 'none';
       }
       $('invoiceLines').addEventListener('input', refreshInvoiceLineSummary);
@@ -1100,14 +1189,14 @@
          });
        });
      }
-     function openInvoiceEmail(id) {
+      function openInvoiceEmail(id, reminder) {
        var invoice = state.invoices.find(function(item) { return String(item.id) === String(id); });
        if (!invoice) return;
        var client = clientForInvoice(invoice) || {};
        var email = emailForClient(client);
        if (!email) { toast('Añade un correo en la ficha del cliente antes de enviarla'); return; }
-       var subject = 'Factura ' + invoice.id + ' · ' + companyName();
-       var message = 'Hola ' + invoice.client + ',\n\nTe enviamos la factura ' + invoice.id + ' por importe de ' + euro(invoice.total) + '.\n\nUn saludo,\n' + companyName();
+        var subject = reminder ? 'Recordatorio de pago · Factura ' + invoice.id + ' · ' + companyName() : 'Factura ' + invoice.id + ' · ' + companyName();
+        var message = reminder ? 'Hola ' + invoice.client + ',\n\nTe recordamos que la factura ' + invoice.id + ' por importe de ' + euro(invoice.total) + (invoice.dueDate ? ' vence el ' + invoice.dueDate : '') + ' está pendiente de pago.\n\nSi ya has realizado el pago, puedes ignorar este mensaje.\n\nUn saludo,\n' + companyName() : 'Hola ' + invoice.client + ',\n\nTe enviamos la factura ' + invoice.id + ' por importe de ' + euro(invoice.total) + '.\n\nUn saludo,\n' + companyName();
        var automaticReady = Boolean(state.settings && state.settings.outlookClientId);
        var explanation = automaticReady ? 'Outlook está configurado. Se generará el PDF y se enviará mediante Microsoft Graph después de autorizar la cuenta.' : 'El envío automático todavía no está configurado. Puedes preparar el correo ahora; para automatizarlo, completa los datos de Outlook en Configuración.';
        var buttonLabel = automaticReady ? 'Generar PDF y enviar automáticamente' : 'Descargar PDF y abrir correo';
@@ -1118,10 +1207,10 @@
          if (automaticReady && typeof window.sendInvoiceWithOutlook === 'function') {
            toast('Generando el PDF y preparando el envío...');
            window.authorizeOutlook().then(function(accessToken) { return createInvoicePdf(id).then(function(pdfBlob) { return window.sendInvoiceWithOutlook({ accessToken:accessToken, recipient:email, subject:nextSubject, message:nextMessage, filename:'Factura-' + String(invoice.id).replace(/[^\w-]+/g, '_') + '.pdf', pdfBlob:pdfBlob }); }); }).then(function() {
-             invoice.status = 'Enviada';
-             recordActivity('Enviada','Factura',invoice.id,'Factura enviada automáticamente por Outlook a ' + email);
+              if (reminder) invoice.lastReminderAt = new Date().toISOString(); else invoice.status = 'Enviada';
+              recordActivity(reminder ? 'Recordatorio enviado' : 'Enviada','Factura',invoice.id,(reminder ? 'Recordatorio' : 'Factura') + ' enviado automáticamente por Outlook a ' + email);
              render();
-             toast('Factura enviada por Outlook');
+              toast(reminder ? 'Recordatorio enviado por Outlook' : 'Factura enviada por Outlook');
            }).catch(function(error) {
              console.error('Error al enviar la factura por Outlook:', error);
              toast(error && error.message ? error.message : 'No se pudo enviar la factura por Outlook');
@@ -1129,9 +1218,12 @@
            return;
          }
          printInvoice(id);
-         var mailto = 'mailto:' + encodeURIComponent(email) + '?subject=' + encodeURIComponent(nextSubject) + '&body=' + encodeURIComponent(nextMessage);
+          var mailto = 'mailto:' + encodeURIComponent(email) + '?subject=' + encodeURIComponent(nextSubject) + '&body=' + encodeURIComponent(nextMessage + '\n\nAdjunta el PDF descargado de la factura.');
          setTimeout(function() { window.location.href = mailto; }, 650);
-         toast('PDF preparado. Adjunta el archivo en Outlook y envía el correo.');
+          if (reminder) invoice.lastReminderAt = new Date().toISOString();
+          recordActivity(reminder ? 'Recordatorio preparado' : 'Envío preparado','Factura',invoice.id,(reminder ? 'Recordatorio' : 'Factura') + ' preparado para ' + email);
+          saveState();
+          toast(reminder ? 'Recordatorio preparado. Adjunta el PDF y envía el correo.' : 'PDF preparado. Adjunta el archivo en Outlook y envía el correo.');
        });
      }
     function printAllInvoices() {
@@ -1215,10 +1307,11 @@
     function exportProductsCsv() { downloadCsv('productos-ruiz-rivas.csv', ['Nombre','Código','Precio sin IVA','Tipo','IVA'], state.products.map(function(p) { return [p.name,p.code || '',productBase(p),p.kind || 'Servicio',p.vat == null ? 21 : p.vat]; })); }
     function exportExpensesCsv() { downloadCsv('gastos-ruiz-rivas.csv', ['Número','Proveedor','Categoría','Fecha','IVA','Total'], state.expenses.map(function(e) { return [e.id,e.supplier,e.category,e.date,e.vat == null ? 21 : e.vat,e.total || 0]; })); }
     function exportActivityCsv() { downloadCsv('historial-ruiz-rivas.csv', ['Fecha','Usuario','Acción','Módulo','Registro','Detalle'], (state.activity || []).map(function(a) { return [a.date,a.user,a.action,a.entity,a.recordId,a.details]; })); }
+    function exportRecurringCsv() { downloadCsv('facturas-recurrentes-ruiz-rivas.csv', ['Regla','Cliente','Descripción','Frecuencia','Próxima fecha','Base imponible','IVA','Forma de cobro','Activa'], (state.recurringInvoices || []).map(function(rule) { return [rule.id,rule.client,rule.description,rule.frequency,rule.nextDate,rule.base,rule.iva,paymentNames[rule.paymentMethod] || rule.paymentMethod,rule.active === false ? 'No' : 'Sí']; })); }
     function showPaymentReminders() {
-      var pending = state.invoices.filter(function(i) { return i.status !== 'Pagada'; });
-      var rows = pending.length ? pending.map(function(i) { return '<tr><td>' + esc(i.client) + '</td><td>' + esc(i.id) + '</td><td>' + esc(i.dueDate || 'Sin vencimiento') + '</td><td class="amount">' + euro(i.total) + '</td></tr>'; }).join('') : '<tr><td colspan="4">No hay facturas pendientes.</td></tr>';
-      openModal('Recordatorios de pago', '<form class="form"><div class="mini-info">Aquí puedes revisar los clientes pendientes. El envío automático por Outlook se activará en la última fase.</div><div style="overflow:auto;margin-top:14px"><table><thead><tr><th>Cliente</th><th>Factura</th><th>Vencimiento</th><th class="amount">Importe</th></tr></thead><tbody>' + rows + '</tbody></table></div><div class="form-actions"><button type="button" class="ghost" data-action="close-modal">Cerrar</button><button type="button" class="secondary" data-action="export-invoices-csv">Exportar pendientes</button></div></form>', function() { closeModal(); });
+      var pending = state.invoices.filter(function(i) { return invoicePaymentStatus(i) !== 'Pagada' && invoicePaymentStatus(i) !== 'Borrador'; });
+      var rows = pending.length ? pending.map(function(i) { var email = emailForInvoice(i); return '<tr><td>' + esc(i.client) + (email ? '<br><small style="color:#667085">' + esc(email) + '</small>' : '') + '</td><td>' + esc(i.id) + '</td><td>' + esc(i.dueDate || 'Sin vencimiento') + '</td><td class="amount">' + euro(Math.max(0, parseAmount(i.total) - invoicePaidAmount(i))) + '</td><td><button type="button" class="secondary" data-action="send-reminder" data-id="' + esc(i.id) + '"' + (email ? '' : ' disabled title="Añade un correo al cliente"') + '>Enviar recordatorio</button></td></tr>'; }).join('') : '<tr><td colspan="5">No hay facturas pendientes.</td></tr>';
+      openModal('Recordatorios de pago', '<form class="form"><div class="mini-info">Puedes preparar el aviso de cada factura. Si Outlook está configurado, se enviará con el PDF adjunto; si no, se abrirá el correo para que lo revises.</div><div style="overflow:auto;margin-top:14px"><table><thead><tr><th>Cliente</th><th>Factura</th><th>Vencimiento</th><th class="amount">Pendiente</th><th></th></tr></thead><tbody>' + rows + '</tbody></table></div><div class="form-actions"><button type="button" class="ghost" data-action="close-modal">Cerrar</button><button type="button" class="secondary" data-action="export-invoices-csv">Exportar pendientes</button></div></form>', function() { closeModal(); });
     }
     function invoicePaidAmount(invoice) { if (Array.isArray(invoice.payments) && invoice.payments.length) return invoice.payments.reduce(function(sum, payment) { return sum + parseAmount(payment.amount); }, 0); return invoice.status === 'Pagada' ? parseAmount(invoice.total) : parseAmount(invoice.paidAmount); }
     function invoicePaymentStatus(invoice) { var paid = invoicePaidAmount(invoice); var total = parseAmount(invoice.total); if (total > 0 && paid >= total) return 'Pagada'; if (paid > 0) return 'Parcial'; return invoice.status || 'Borrador'; }
@@ -1465,7 +1558,7 @@
       if (!action) return;
       var a = action.dataset.action;
       if (a === 'logout') { if (window.firebaseSignOut) window.firebaseSignOut(); else lockApp(); return; }
-      if (['delete-client','delete-product','delete-expense','delete-quote','delete-invoice','new-account','edit-account','delete-account','save-settings','toggle-setting','edit-default-vat','customize-template','backup-import'].indexOf(a) >= 0 && !requireAdmin()) return;
+      if (['delete-client','delete-product','delete-expense','delete-quote','delete-invoice','new-account','edit-account','delete-account','save-settings','toggle-setting','edit-default-vat','customize-template','backup-import','delete-recurring'].indexOf(a) >= 0 && !requireAdmin()) return;
       if (a === 'new-invoice') newInvoice();
       if (a === 'new-client') newClient();
       if (a === 'new-product') newProduct();
@@ -1506,8 +1599,15 @@
       if (a === 'export-products-csv') exportProductsCsv();
       if (a === 'export-expenses-csv') exportExpensesCsv();
       if (a === 'export-activity-csv') exportActivityCsv();
+       if (a === 'export-recurring-csv') exportRecurringCsv();
       if (a === 'duplicate-invoice') duplicateInvoice(action.dataset.id);
+       if (a === 'new-recurring') newRecurringInvoice();
+       if (a === 'edit-recurring') newRecurringInvoice(action.dataset.id);
+       if (a === 'delete-recurring') deleteRecurringInvoice(action.dataset.id);
+       if (a === 'generate-recurring') generateRecurringInvoice(action.dataset.id);
+       if (a === 'generate-due-recurring') generateDueRecurringInvoices();
       if (a === 'record-payment') recordPayment(action.dataset.id);
+       if (a === 'send-reminder') { closeModal(); openInvoiceEmail(action.dataset.id, true); }
       if (a === 'generate-sepa-remittance') generateSepaRemittance();
       if (a === 'download-remittance') downloadRemittance(action.dataset.id);
       if (a === 'mark-remittance-sent') markRemittanceSent(action.dataset.id);
@@ -1529,7 +1629,7 @@
          window.authorizeOutlook().then(function() { toast('Cuenta de Outlook conectada'); }).catch(function(error) { toast(error && error.message ? error.message : 'No se pudo conectar Outlook'); });
        }
       if (a === 'client-detail') clientDetail(action.dataset.id);
-      if (a === 'convert-quote') { var q = state.quotes.find(function(x) { return x.id === action.dataset.id; }); if (q) { var convertedId = nextDocumentNumber('F-2026-', state.invoices); state.invoices.unshift({ id:convertedId, client:q.client, date:today(), status:'Borrador', total:q.total, subtotal:q.total, lines:[{ description:q.description || 'Servicio o producto', base:Number(q.total || 0), iva:Number(state.settings.defaultVat) }] }); q.status = 'Aceptado'; recordActivity('Convertido','Presupuesto',q.id,'Convertido en ' + convertedId); toast('Presupuesto convertido en factura'); render(); } }
+       if (a === 'convert-quote') { var q = state.quotes.find(function(x) { return x.id === action.dataset.id; }); if (q) { var convertedId = nextDocumentNumber('F-2026-', state.invoices); var quoteClient = clientForInvoice({ client:q.client }) || {}; var quoteMethod = quoteClient.paymentMethod || 'transferencia'; var quoteAccounts = quoteMethod === 'transferencia' && state.accounts.length ? [state.accounts[0].name + ' · ' + state.accounts[0].iban] : []; var quoteLines = [{ description:q.description || 'Servicio o producto', base:parseAmount(q.total), iva:Number(state.settings.defaultVat) }]; var quoteTotals = invoiceTotals(quoteLines); state.invoices.unshift({ id:convertedId, client:q.client, date:today(), dueDate:futureDate(Number(quoteClient.paymentTerms) || 30), status:'Borrador', total:quoteTotals.total, subtotal:quoteTotals.base, iva:Number(state.settings.defaultVat), lines:quoteLines, paymentMethod:quoteMethod, paymentAccount:quoteAccounts.join(' · '), paymentAccounts:quoteAccounts, notes:q.notes || '', sourceQuote:q.id }); q.status = 'Aceptado'; recordActivity('Convertido','Presupuesto',q.id,'Convertido en ' + convertedId); toast('Presupuesto convertido en factura'); render(); } }
       if (a === 'mark-paid') { var i = state.invoices.find(function(x) { return x.id === action.dataset.id; }); if (i) { i.status = 'Pagada'; recordActivity('Cobrada','Factura',i.id,'Factura marcada como cobrada'); toast('Factura marcada como cobrada'); render(); } }
       if (a === 'new-quote') newQuote();
     });
@@ -1663,7 +1763,7 @@
 
     function localSnapshot() {
       return {
-        version: 2,
+        version: 3,
         initialized: true,
         updatedAt: new Date().toISOString(),
         clients: window.state.clients,
@@ -1673,6 +1773,7 @@
         expenses: window.state.expenses,
         accounts: window.state.accounts,
         remittances: window.state.remittances,
+        recurringInvoices: window.state.recurringInvoices,
         settings: window.state.settings,
         activity: window.state.activity
       };
@@ -1721,8 +1822,8 @@
         return;
       }
       const local = localSnapshot();
-      const remoteHasRecords = ['clients','products','invoices','quotes','expenses','accounts'].some(function(key) { return Array.isArray(remote[key]) && remote[key].length; });
-      const localHasRecords = ['clients','products','invoices','quotes','expenses','accounts'].some(function(key) { return Array.isArray(local[key]) && local[key].length; });
+       const remoteHasRecords = ['clients','products','invoices','quotes','expenses','accounts','remittances','recurringInvoices'].some(function(key) { return Array.isArray(remote[key]) && remote[key].length; });
+       const localHasRecords = ['clients','products','invoices','quotes','expenses','accounts','remittances','recurringInvoices'].some(function(key) { return Array.isArray(local[key]) && local[key].length; });
       if (remote.initialized !== true && !remoteHasRecords && localHasRecords) {
         sharedReady = true;
         try {
@@ -1744,6 +1845,7 @@
       window.state.expenses = Array.isArray(remote.expenses) ? remote.expenses : window.state.expenses;
       window.state.accounts = Array.isArray(remote.accounts) ? remote.accounts : window.state.accounts;
       window.state.remittances = Array.isArray(remote.remittances) ? remote.remittances : window.state.remittances;
+      window.state.recurringInvoices = Array.isArray(remote.recurringInvoices) ? remote.recurringInvoices : window.state.recurringInvoices;
       window.state.settings = Object.assign({}, window.state.settings, remote.settings || {});
       window.state.activity = Array.isArray(remote.activity) ? remote.activity : window.state.activity;
       sharedReady = true;

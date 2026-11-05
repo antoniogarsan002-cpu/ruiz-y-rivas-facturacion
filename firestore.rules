@@ -45,6 +45,7 @@ service cloud.firestore {
         request.resource.data.expenses.size() >= resource.data.expenses.size() &&
         request.resource.data.accounts == resource.data.accounts &&
         request.resource.data.remittances.size() >= resource.data.remittances.size() &&
+        request.resource.data.get('recurringInvoices', []).size() >= resource.data.get('recurringInvoices', []).size() &&
         request.resource.data.activity.size() >= resource.data.activity.size()
       );
     }
