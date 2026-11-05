@@ -1138,7 +1138,7 @@
       toast('Archivo CSV descargado');
     }
     function exportInvoicesCsv() { downloadCsv('facturas-ruiz-rivas.csv', ['Número','Cliente','Fecha','Vencimiento','Estado','Base imponible','IVA','Total'], state.invoices.map(function(i) { return [i.id,i.client,i.date,i.dueDate || '',i.status,i.subtotal || 0,i.iva == null ? '' : i.iva + '%',i.total || 0]; })); }
-    function exportClientsCsv() { downloadCsv('clientes-ruiz-rivas.csv', ['Nombre','Correo','Teléfono','NIF/CIF','Dirección','Titular de la cuenta','Banco','IBAN','BIC/SWIFT','Referencia mandato SEPA','Fecha mandato','Tipo remesa','Mandato firmado','Forma de pago','Condiciones de pago'], state.clients.map(function(c) { return [c.name,c.detail,c.phone || '',c.tax || '',c.address || '',c.bankHolder || '',c.bankName || '',c.iban || '',c.bic || '',c.mandateRef || '',c.mandateDate || '',c.mandateType || 'RCUR',c.mandateSigned ? 'Sí' : 'No',paymentNames[c.paymentMethod] || c.paymentMethod || '',c.paymentTerms || '']; })); }
+    function exportClientsCsv() { downloadCsv('clientes-ruiz-rivas.csv', ['Nombre','Correo','Teléfono','NIF/CIF','Dirección','Titular de la cuenta','Banco','IBAN protegido','BIC/SWIFT','Referencia mandato SEPA','Fecha mandato','Tipo remesa','Mandato firmado','Forma de pago','Condiciones de pago'], state.clients.map(function(c) { return [c.name,c.detail,c.phone || '',c.tax || '',c.address || '',c.bankHolder || '',c.bankName || '',maskIban(c.iban) || '',c.bic || '',c.mandateRef || '',c.mandateDate || '',c.mandateType || 'RCUR',c.mandateSigned ? 'Sí' : 'No',paymentNames[c.paymentMethod] || c.paymentMethod || '',c.paymentTerms || '']; })); }
     function exportProductsCsv() { downloadCsv('productos-ruiz-rivas.csv', ['Nombre','Código','Precio sin IVA','Tipo','IVA'], state.products.map(function(p) { return [p.name,p.code || '',productBase(p),p.kind || 'Servicio',p.vat == null ? 21 : p.vat]; })); }
     function exportExpensesCsv() { downloadCsv('gastos-ruiz-rivas.csv', ['Número','Proveedor','Categoría','Fecha','IVA','Total'], state.expenses.map(function(e) { return [e.id,e.supplier,e.category,e.date,e.vat == null ? 21 : e.vat,e.total || 0]; })); }
     function exportActivityCsv() { downloadCsv('historial-ruiz-rivas.csv', ['Fecha','Usuario','Acción','Módulo','Registro','Detalle'], (state.activity || []).map(function(a) { return [a.date,a.user,a.action,a.entity,a.recordId,a.details]; })); }
@@ -1474,7 +1474,7 @@
   </script>
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
-    import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
+    import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut, sendPasswordResetEmail, setPersistence, browserSessionPersistence } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
     import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
     const firebaseConfig = {
@@ -1489,6 +1489,9 @@
 
     const firebaseApp = initializeApp(firebaseConfig);
     const auth = getAuth(firebaseApp);
+    const authPersistenceReady = setPersistence(auth, browserSessionPersistence).catch(function(error) {
+      console.error('No se pudo activar la sesión de navegador:', error);
+    });
     const db = getFirestore(firebaseApp);
     const sharedDoc = doc(db, "appData", "ruiz_rivas_facturacion");
     let sharedReady = false;
@@ -1497,7 +1500,7 @@
     let sharedUnsubscribe = null;
 
     window.firebaseSignIn = function(email, password) {
-      return signInWithEmailAndPassword(auth, email, password);
+      return authPersistenceReady.then(function() { return signInWithEmailAndPassword(auth, email, password); });
     };
     window.firebaseSignOut = function() {
       return signOut(auth);

@@ -43,8 +43,9 @@ service cloud.firestore {
         request.resource.data.invoices.size() >= resource.data.invoices.size() &&
         request.resource.data.quotes.size() >= resource.data.quotes.size() &&
         request.resource.data.expenses.size() >= resource.data.expenses.size() &&
-        request.resource.data.accounts.size() >= resource.data.accounts.size() &&
-        request.resource.data.remittances.size() >= resource.data.remittances.size()
+        request.resource.data.accounts == resource.data.accounts &&
+        request.resource.data.remittances.size() >= resource.data.remittances.size() &&
+        request.resource.data.activity.size() >= resource.data.activity.size()
       );
     }
 
