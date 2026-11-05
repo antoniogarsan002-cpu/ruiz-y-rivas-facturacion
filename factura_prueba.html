@@ -707,7 +707,17 @@
         if (rectifiesInput) {
           var rectifiesContainer = rectifiesInput.parentElement;
           rectifiesContainer.innerHTML = '<label>Factura original</label><select name="rectifies">' + rectifiedOptions + '</select>';
+          rectifiesContainer.parentElement.insertAdjacentHTML('afterend', '<div class="form-grid invoice-extra-fields"><div><label>Motivo de la rectificación</label><input name="rectificationReason" value="' + esc(invoiceForEdit && invoiceForEdit.rectificationReason || '') + '" placeholder="Ej.: devolución o corrección de importe"></div></div>');
         }
+        var invoiceTypeField = form.querySelector('[name="invoiceType"]');
+        var originalInvoiceField = form.querySelector('[name="rectifies"]');
+        var rectificationReasonField = form.querySelector('[name="rectificationReason"]');
+        function syncRectificationFields() {
+          var active = invoiceTypeField && invoiceTypeField.value === 'rectificativa';
+          if (originalInvoiceField) { originalInvoiceField.disabled = !active; originalInvoiceField.required = active; }
+          if (rectificationReasonField) { rectificationReasonField.disabled = !active; rectificationReasonField.required = active; }
+        }
+        if (invoiceTypeField) { invoiceTypeField.addEventListener('change', syncRectificationFields); syncRectificationFields(); }
       }
       if (form) form.addEventListener('submit', function(e) {
         e.preventDefault();
@@ -756,12 +766,14 @@
         var paymentMethod = data.get('payment');
         var invoiceType = data.get('invoiceType') === 'rectificativa' ? 'rectificativa' : 'normal';
         var rectifies = invoiceType === 'rectificativa' ? (data.get('rectifies') || '') : '';
+        if (invoiceType === 'rectificativa' && !rectifies) { toast('Selecciona la factura original que vas a rectificar'); return; }
+        if (invoiceType === 'rectificativa' && !String(data.get('rectificationReason') || '').trim()) { toast('Indica el motivo de la rectificación'); return; }
         var selectedIds = data.getAll('accounts');
         var selectedAccounts = state.accounts.filter(function(a) { return selectedIds.some(function(id) { return String(a.id) === String(id); }); });
         var accountLabels = paymentMethod === 'transferencia' ? selectedAccounts.map(function(a) { return a.name + ' · ' + a.iban; }) : [];
         var commonIva = lines.length && lines.every(function(line) { return line.iva === lines[0].iva; }) ? lines[0].iva : null;
         var num = nextDocumentNumber(invoiceType === 'rectificativa' ? 'R-2026-' : 'F-2026-', state.invoices);
-        state.invoices.unshift({ id:num, client:data.get('client'), date:data.get('date'), status:'Borrador', subtotal:totals.base, total:totals.total, iva:commonIva, lines:lines, paymentMethod:paymentMethod, paymentAccount:accountLabels.join(' · '), paymentAccounts:accountLabels, invoiceType:invoiceType, rectificative:invoiceType === 'rectificativa', rectifies:rectifies, notes:data.get('notes') || '' });
+        state.invoices.unshift({ id:num, client:data.get('client'), date:data.get('date'), status:'Borrador', subtotal:totals.base, total:totals.total, iva:commonIva, lines:lines, paymentMethod:paymentMethod, paymentAccount:accountLabels.join(' · '), paymentAccounts:accountLabels, invoiceType:invoiceType, rectificative:invoiceType === 'rectificativa', rectifies:rectifies, rectificationReason:invoiceType === 'rectificativa' ? String(data.get('rectificationReason') || '').trim() : '', notes:data.get('notes') || '' });
         recordActivity('Creada','Factura',num,'Factura nueva para ' + data.get('client'));
         closeModal();
         state.view='facturas';
@@ -830,12 +842,14 @@
         var paymentMethod = data.get('payment');
         var invoiceType = data.get('invoiceType') === 'rectificativa' ? 'rectificativa' : 'normal';
         var rectifies = invoiceType === 'rectificativa' ? (data.get('rectifies') || '') : '';
+        if (invoiceType === 'rectificativa' && !rectifies) { toast('Selecciona la factura original que vas a rectificar'); return; }
+        if (invoiceType === 'rectificativa' && !String(data.get('rectificationReason') || '').trim()) { toast('Indica el motivo de la rectificación'); return; }
         var selectedIds = data.getAll('accounts');
         var selectedAccounts = state.accounts.filter(function(a) { return selectedIds.some(function(id) { return String(a.id) === String(id); }); });
         var accountLabels = paymentMethod === 'transferencia' ? selectedAccounts.map(function(a) { return a.name + ' · ' + a.iban; }) : [];
         var commonIva = lines.length && lines.every(function(line) { return line.iva === lines[0].iva; }) ? lines[0].iva : null;
         var num = nextDocumentNumber(invoiceType === 'rectificativa' ? 'R-2026-' : 'F-2026-', state.invoices);
-        state.invoices.unshift({ id:num, client:data.get('client'), date:data.get('date'), status:'Borrador', subtotal:totals.base, total:totals.total, iva:commonIva, lines:lines, paymentMethod:paymentMethod, paymentAccount:accountLabels.join(' · '), paymentAccounts:accountLabels, invoiceType:invoiceType, rectificative:invoiceType === 'rectificativa', rectifies:rectifies, notes:data.get('notes') || '' });
+        state.invoices.unshift({ id:num, client:data.get('client'), date:data.get('date'), status:'Borrador', subtotal:totals.base, total:totals.total, iva:commonIva, lines:lines, paymentMethod:paymentMethod, paymentAccount:accountLabels.join(' · '), paymentAccounts:accountLabels, invoiceType:invoiceType, rectificative:invoiceType === 'rectificativa', rectifies:rectifies, rectificationReason:invoiceType === 'rectificativa' ? String(data.get('rectificationReason') || '').trim() : '', notes:data.get('notes') || '' });
         recordActivity('Creada','Factura',num,'Factura nueva para ' + data.get('client'));
         closeModal();
         state.view='facturas';
@@ -933,6 +947,8 @@
         var selectedAccounts = state.accounts.filter(function(a) { return selectedIds.some(function(accountId) { return String(a.id) === String(accountId); }); });
         var invoiceType = data.get('invoiceType') === 'rectificativa' ? 'rectificativa' : 'normal';
         var rectifies = invoiceType === 'rectificativa' ? (data.get('rectifies') || '') : '';
+        if (invoiceType === 'rectificativa' && !rectifies) { toast('Selecciona la factura original que vas a rectificar'); return; }
+        if (invoiceType === 'rectificativa' && !String(data.get('rectificationReason') || '').trim()) { toast('Indica el motivo de la rectificación'); return; }
         var accountLabels = data.get('payment') === 'transferencia' ? selectedAccounts.map(function(a) { return a.name + ' · ' + a.iban; }) : [];
         invoice.id = data.get('number') || invoice.id;
         invoice.client = data.get('client');
@@ -948,6 +964,7 @@
         invoice.invoiceType = invoiceType;
         invoice.rectificative = invoiceType === 'rectificativa';
         invoice.rectifies = rectifies;
+        invoice.rectificationReason = invoiceType === 'rectificativa' ? String(data.get('rectificationReason') || '').trim() : '';
         invoice.notes = data.get('notes') || '';
         closeModal();
         state.view = 'facturas';
