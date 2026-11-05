@@ -771,6 +771,10 @@
         var selectedIds = data.getAll('accounts');
         var selectedAccounts = state.accounts.filter(function(a) { return selectedIds.some(function(id) { return String(a.id) === String(id); }); });
         var accountLabels = paymentMethod === 'transferencia' ? selectedAccounts.map(function(a) { return a.name + ' · ' + a.iban; }) : [];
+        var invoiceClientForPayment = state.clients.find(function(item) { return item.name === data.get('client'); }) || {};
+        if (paymentMethod === 'transferencia' && !accountLabels.length) { toast('Selecciona al menos una cuenta del despacho'); return; }
+        if (paymentMethod === 'recibo' && !isValidIban(invoiceClientForPayment.iban)) { toast('El cliente debe tener un IBAN válido para cobrar por giro bancario'); return; }
+        if (invoiceType === 'rectificativa' && rectifies) { var originalInvoice = state.invoices.find(function(item) { return String(item.id) === String(rectifies); }); if (originalInvoice && originalInvoice.client !== data.get('client')) { toast('La factura original debe pertenecer al mismo cliente'); return; } }
         var commonIva = lines.length && lines.every(function(line) { return line.iva === lines[0].iva; }) ? lines[0].iva : null;
         var num = nextDocumentNumber(invoiceType === 'rectificativa' ? 'R-2026-' : 'F-2026-', state.invoices);
         state.invoices.unshift({ id:num, client:data.get('client'), date:data.get('date'), status:'Borrador', subtotal:totals.base, total:totals.total, iva:commonIva, lines:lines, paymentMethod:paymentMethod, paymentAccount:accountLabels.join(' · '), paymentAccounts:accountLabels, invoiceType:invoiceType, rectificative:invoiceType === 'rectificativa', rectifies:rectifies, rectificationReason:invoiceType === 'rectificativa' ? String(data.get('rectificationReason') || '').trim() : '', notes:data.get('notes') || '' });
@@ -847,6 +851,10 @@
         var selectedIds = data.getAll('accounts');
         var selectedAccounts = state.accounts.filter(function(a) { return selectedIds.some(function(id) { return String(a.id) === String(id); }); });
         var accountLabels = paymentMethod === 'transferencia' ? selectedAccounts.map(function(a) { return a.name + ' · ' + a.iban; }) : [];
+        var invoiceClientForPayment = state.clients.find(function(item) { return item.name === data.get('client'); }) || {};
+        if (paymentMethod === 'transferencia' && !accountLabels.length) { toast('Selecciona al menos una cuenta del despacho'); return; }
+        if (paymentMethod === 'recibo' && !isValidIban(invoiceClientForPayment.iban)) { toast('El cliente debe tener un IBAN válido para cobrar por giro bancario'); return; }
+        if (invoiceType === 'rectificativa' && rectifies) { var originalInvoice = state.invoices.find(function(item) { return String(item.id) === String(rectifies); }); if (originalInvoice && originalInvoice.client !== data.get('client')) { toast('La factura original debe pertenecer al mismo cliente'); return; } }
         var commonIva = lines.length && lines.every(function(line) { return line.iva === lines[0].iva; }) ? lines[0].iva : null;
         var num = nextDocumentNumber(invoiceType === 'rectificativa' ? 'R-2026-' : 'F-2026-', state.invoices);
         state.invoices.unshift({ id:num, client:data.get('client'), date:data.get('date'), status:'Borrador', subtotal:totals.base, total:totals.total, iva:commonIva, lines:lines, paymentMethod:paymentMethod, paymentAccount:accountLabels.join(' · '), paymentAccounts:accountLabels, invoiceType:invoiceType, rectificative:invoiceType === 'rectificativa', rectifies:rectifies, rectificationReason:invoiceType === 'rectificativa' ? String(data.get('rectificationReason') || '').trim() : '', notes:data.get('notes') || '' });
