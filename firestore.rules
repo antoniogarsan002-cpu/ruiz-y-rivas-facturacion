@@ -6,6 +6,10 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function namedAdmin() {
+      return signedIn() && request.auth.token.email == 'agarcia@rconsultores.es';
+    }
+
     function member(companyId) {
       return signedIn() && exists(
         /databases/$(database)/documents/companies/$(companyId)/members/$(request.auth.uid)
@@ -27,7 +31,21 @@ service cloud.firestore {
     // Transición segura para la versión actual de la app.
     // Debe mantenerse solo mientras se migra appData a companies/{companyId}/...
     match /appData/ruiz_rivas_facturacion {
-      allow read, write: if signedIn();
+      allow read: if signedIn();
+      // Solo el administrador puede crear o borrar el documento principal.
+      allow create, delete: if namedAdmin();
+      // Los usuarios pueden trabajar con los registros, pero no cambiar
+      // configuración ni reducir las colecciones para borrar datos.
+      allow update: if namedAdmin() || (
+        request.resource.data.settings == resource.data.settings &&
+        request.resource.data.clients.size() >= resource.data.clients.size() &&
+        request.resource.data.products.size() >= resource.data.products.size() &&
+        request.resource.data.invoices.size() >= resource.data.invoices.size() &&
+        request.resource.data.quotes.size() >= resource.data.quotes.size() &&
+        request.resource.data.expenses.size() >= resource.data.expenses.size() &&
+        request.resource.data.accounts.size() >= resource.data.accounts.size() &&
+        request.resource.data.remittances.size() >= resource.data.remittances.size()
+      );
     }
 
     match /companies/{companyId} {
